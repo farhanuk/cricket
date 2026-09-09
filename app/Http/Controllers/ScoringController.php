@@ -67,27 +67,13 @@ class ScoringController extends Controller
     /**
      * Show the scoring screen for an innings.
      */
-    public function show(Innings $innings): Response
+    public function show(Innings $innings, ScoringService $scoringService): Response
     {
         $innings->load(['fixture.season.team', 'fixture.selections.player']);
 
         $fixture = $innings->fixture;
-        $state = app(ScoringService::class)->state($innings);
-
-        $recent = $innings->deliveries()
-            ->latest('id')
-            ->take(8)
-            ->get()
-            ->map(fn ($delivery) => [
-                'id' => $delivery->id,
-                'over_no' => $delivery->over_no,
-                'ball_no' => $delivery->ball_no,
-                'runs' => $delivery->runs,
-                'is_out' => $delivery->is_out,
-                'extra_type' => $delivery->extra_type,
-                'striker_id' => $delivery->striker_id,
-                'bowler_id' => $delivery->bowler_id,
-            ]);
+        $state = $scoringService->state($innings);
+        $isOurs = $innings->isOurs();
 
         $players = $fixture->selections
             ->map(fn ($selection) => $selection->player)
@@ -95,11 +81,11 @@ class ScoringController extends Controller
             ->values()
             ->map(fn (Player $player) => $player->only(['id', 'name', 'squad_number']));
 
-        return Inertia::render('scoring/index', [
+        $payload = [
             'innings' => [
                 'id' => $innings->id,
                 'batting_team_id' => $innings->batting_team_id,
-                'batting_side' => $innings->isOurs() ? 'us' : 'them',
+                'batting_side' => $isOurs ? 'us' : 'them',
                 'sequence' => $innings->sequence,
             ],
             'fixture' => $fixture->only([
@@ -107,14 +93,26 @@ class ScoringController extends Controller
                 'opponent',
                 'overs',
                 'balls_per_over',
-                'track_bowling_wickets',
             ]),
             'team' => $fixture->season->team->only(['id', 'name']),
-            'isOurs' => $innings->isOurs(),
+            'isOurs' => $isOurs,
             'players' => $players,
             'state' => $state,
-            'recent' => $recent,
-        ]);
+            'currentOverDeliveries' => $scoringService->currentOverDeliveries($innings),
+        ];
+
+        if ($isOurs) {
+            $currentPairPosition = $state['current_pair']['position'] ?? 0;
+
+            $payload['lastStrikerId'] = $scoringService->currentOverStrikerId($innings);
+            $payload['upcomingPairs'] = $scoringService->upcomingPairs($fixture, $currentPairPosition);
+        } else {
+            $payload['currentOverBowlerId'] = $scoringService->currentOverBowlerId($innings);
+            $payload['previousOverBowlerId'] = $scoringService->previousOverBowlerId($innings);
+            $payload['bowlingFigures'] = $scoringService->bowlingFigures($innings);
+        }
+
+        return Inertia::render('scoring/index', $payload);
     }
 
     /**

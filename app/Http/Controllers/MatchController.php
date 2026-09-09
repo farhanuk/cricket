@@ -3,10 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Fixture;
-use App\Models\Player;
 use App\Services\ScoringService;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
@@ -53,26 +50,11 @@ class MatchController extends Controller
                 'overs',
                 'balls_per_over',
                 'first_innings_team_id',
-                'track_bowling_wickets',
             ]),
             'team' => $team->only(['id', 'name']),
             'innings' => $inningsSummaries,
             'result' => $result,
             'match_started' => $fixture->innings()->exists(),
         ]);
-    }
-
-    /**
-     * Update match settings for a fixture.
-     */
-    public function updateSettings(Request $request, Fixture $fixture): RedirectResponse
-    {
-        $validated = $request->validate([
-            'track_bowling_wickets' => ['required', 'boolean'],
-        ]);
-
-        $fixture->update($validated);
-
-        return redirect("/fixtures/{$fixture->id}/match");
     }
 }

@@ -136,6 +136,10 @@ export default function FixturesPairs({
             <Head title={`Batting pairs vs ${fixture.opponent}`} />
 
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+                <TextLink href={`/fixtures/${fixture.id}/match`}>
+                    ← Back to match
+                </TextLink>
+
                 <Heading title={`Batting pairs vs ${fixture.opponent}`} />
 
                 <form onSubmit={submit} className="max-w-xl space-y-6">

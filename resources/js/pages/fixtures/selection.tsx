@@ -59,6 +59,10 @@ export default function FixturesSelection({
             <Head title={`Select squad vs ${fixture.opponent}`} />
 
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+                <TextLink href={`/fixtures/${fixture.id}/match`}>
+                    ← Back to match
+                </TextLink>
+
                 <Heading title={`Select squad vs ${fixture.opponent}`} />
 
                 <p

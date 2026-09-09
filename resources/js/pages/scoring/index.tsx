@@ -1,5 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import TextLink from '@/components/text-link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +20,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
 const PAIR_CHECKPOINT_OVERS = [4, 7, 10] as const;
@@ -46,18 +55,28 @@ type ScoringState = {
     current_pair: CurrentPair | null;
 };
 
-type RecentDelivery = {
+type OverDelivery = {
     id: number;
-    over_no: number;
-    ball_no: number | null;
     runs: number;
-    is_out: boolean;
     extra_type: 'wide' | 'no_ball' | null;
-    striker_id: number | null;
-    bowler_id: number | null;
 };
 
-type PageProps = {
+type BowlingFigure = {
+    name: string;
+    overs: string;
+    runs: number;
+    wickets: number;
+    economy: number;
+    wides: number;
+    no_balls: number;
+};
+
+type UpcomingPair = {
+    position: number;
+    label: string;
+};
+
+type BasePageProps = {
     innings: {
         id: number;
         batting_side: string;
@@ -68,60 +87,106 @@ type PageProps = {
         opponent: string;
         overs: number;
         balls_per_over: number;
-        track_bowling_wickets: boolean;
     };
     team: {
         id: number;
         name: string;
     };
-    isOurs: boolean;
     players: Player[];
     state: ScoringState;
-    recent: RecentDelivery[];
+    currentOverDeliveries: OverDelivery[];
 };
+
+type OursPageProps = BasePageProps & {
+    isOurs: true;
+    lastStrikerId: number | null;
+    upcomingPairs: UpcomingPair[];
+};
+
+type OppositionPageProps = BasePageProps & {
+    isOurs: false;
+    currentOverBowlerId: number | null;
+    previousOverBowlerId: number | null;
+    bowlingFigures: BowlingFigure[];
+};
+
+type PageProps = OursPageProps | OppositionPageProps;
 
 type ExtraType = 'wide' | 'no_ball';
 
 function initialStrikerId(
-    recent: RecentDelivery[],
+    lastStrikerId: number | null,
     currentPair: CurrentPair | null,
 ): number | null {
     const pairIds =
         currentPair?.players.map((player) => player.id) ?? [];
 
-    if (recent[0]?.striker_id && pairIds.includes(recent[0].striker_id)) {
-        return recent[0].striker_id;
+    if (lastStrikerId !== null && pairIds.includes(lastStrikerId)) {
+        return lastStrikerId;
     }
 
     return currentPair?.players[0]?.id ?? null;
 }
 
-function bowlerForOver(
-    recent: RecentDelivery[],
-    overNo: number,
-): number | null {
-    const deliveryInOver = recent.find(
-        (delivery) =>
-            delivery.over_no === overNo && delivery.bowler_id !== null,
-    );
+function OverStrip({ deliveries }: { deliveries: OverDelivery[] }) {
+    if (deliveries.length === 0) {
+        return (
+            <p className="text-muted-foreground text-sm">
+                No balls this over yet
+            </p>
+        );
+    }
 
-    return deliveryInOver?.bowler_id ?? null;
+    return (
+        <div className="flex gap-2 overflow-x-auto py-1">
+            {deliveries.map((delivery) => (
+                <div
+                    key={delivery.id}
+                    className={cn(
+                        'relative flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white',
+                        delivery.runs < 0 && 'bg-red-600',
+                        delivery.runs > 0 && 'bg-green-600',
+                        delivery.runs === 0 && 'bg-muted-foreground',
+                    )}
+                >
+                    {delivery.runs}
+                    {delivery.extra_type && (
+                        <span className="bg-background text-foreground absolute -top-1 -right-1 rounded px-0.5 text-[10px] leading-none font-semibold">
+                            {delivery.extra_type === 'wide' ? 'wd' : 'nb'}
+                        </span>
+                    )}
+                </div>
+            ))}
+        </div>
+    );
 }
 
-export default function ScoringIndex({
-    innings,
-    fixture,
-    team,
-    isOurs,
-    players,
-    state,
-    recent,
-}: PageProps) {
+export default function ScoringIndex(props: PageProps) {
+    const {
+        innings,
+        fixture,
+        team,
+        isOurs,
+        players,
+        state,
+        currentOverDeliveries,
+    } = props;
+
+    const lastStrikerId = props.isOurs ? props.lastStrikerId : null;
+    const upcomingPairs = props.isOurs ? props.upcomingPairs : [];
+    const currentOverBowlerId = props.isOurs
+        ? null
+        : props.currentOverBowlerId;
+    const previousOverBowlerId = props.isOurs
+        ? null
+        : props.previousOverBowlerId;
+    const bowlingFigures = props.isOurs ? [] : props.bowlingFigures;
+
     const [strikerId, setStrikerId] = useState<number | null>(() =>
-        isOurs ? initialStrikerId(recent, state.current_pair) : null,
+        isOurs ? initialStrikerId(lastStrikerId, state.current_pair) : null,
     );
-    const [bowlerId, setBowlerId] = useState<number | null>(() =>
-        isOurs ? null : bowlerForOver(recent, state.over_no),
+    const [bowlerId, setBowlerId] = useState<number | null>(
+        currentOverBowlerId,
     );
     const [activeExtra, setActiveExtra] = useState<ExtraType | null>(null);
     const [showOutOptions, setShowOutOptions] = useState(false);
@@ -132,11 +197,19 @@ export default function ScoringIndex({
 
     useEffect(() => {
         if (isOurs) {
-            setStrikerId(initialStrikerId(recent, state.current_pair));
+            setStrikerId(
+                initialStrikerId(lastStrikerId, state.current_pair),
+            );
         } else {
-            setBowlerId(bowlerForOver(recent, state.over_no));
+            setBowlerId(currentOverBowlerId);
         }
-    }, [state.over_no, state.current_pair, recent, isOurs]);
+    }, [
+        state.over_no,
+        state.current_pair,
+        lastStrikerId,
+        currentOverBowlerId,
+        isOurs,
+    ]);
 
     const pairCheckpointActive =
         isOurs &&
@@ -164,10 +237,15 @@ export default function ScoringIndex({
         state.is_complete || state.balls_remaining === 0;
     const scorerReady = isOurs ? strikerSelected : bowlerSelected;
     const scoringEnabled = !inputsLocked && scorerReady && !submitting;
-    const showOutControls =
-        isOurs || fixture.track_bowling_wickets;
     const battingSideName = isOurs ? team.name : fixture.opponent;
     const currentBowler = players.find((player) => player.id === bowlerId);
+
+    const eligibleBowlers =
+        !isOurs && state.balls_bowled_this_over === 0
+            ? players.filter(
+                  (player) => player.id !== previousOverBowlerId,
+              )
+            : players;
 
     const recordDelivery = (payload: {
         runs: number;
@@ -340,6 +418,12 @@ export default function ScoringIndex({
             </Dialog>
 
             <div className="mx-auto flex min-h-full w-full max-w-lg flex-col pb-6">
+                <div className="px-4 pt-4">
+                    <TextLink href={`/fixtures/${fixture.id}/match`}>
+                        ← Back to match
+                    </TextLink>
+                </div>
+
                 <div className="bg-background/95 sticky top-0 z-10 border-b px-4 py-4 backdrop-blur">
                     <div className="flex items-start justify-between gap-3">
                         <div>
@@ -376,6 +460,10 @@ export default function ScoringIndex({
                                 .join(' & ')}
                         </p>
                     )}
+
+                    <div className="mt-3">
+                        <OverStrip deliveries={currentOverDeliveries} />
+                    </div>
                 </div>
 
                 {state.is_complete && (
@@ -450,7 +538,7 @@ export default function ScoringIndex({
                                     <SelectValue placeholder="Select bowler" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {players.map((player) => (
+                                    {eligibleBowlers.map((player) => (
                                         <SelectItem
                                             key={player.id}
                                             value={String(player.id)}
@@ -538,37 +626,33 @@ export default function ScoringIndex({
                         </Button>
                     </div>
 
-                    {showOutControls && (
-                        <div className="space-y-3">
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                disabled={!scoringEnabled}
-                                className="min-h-14 w-full text-lg"
-                                onClick={() =>
-                                    setShowOutOptions((open) => !open)
-                                }
-                            >
-                                OUT
-                            </Button>
+                    <div className="space-y-3">
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            disabled={!scoringEnabled}
+                            className="min-h-14 w-full text-lg"
+                            onClick={() => setShowOutOptions((open) => !open)}
+                        >
+                            OUT
+                        </Button>
 
-                            {showOutOptions && (
-                                <div className="grid grid-cols-5 gap-2">
-                                    {[-1, -2, -3, -4, -5].map((runs) => (
-                                        <button
-                                            key={runs}
-                                            type="button"
-                                            disabled={!scoringEnabled}
-                                            onClick={() => recordOut(runs)}
-                                            className="bg-destructive hover:bg-destructive/90 min-h-14 rounded-xl text-lg font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            {runs}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
+                        {showOutOptions && (
+                            <div className="grid grid-cols-5 gap-2">
+                                {[-1, -2, -3, -4, -5].map((runs) => (
+                                    <button
+                                        key={runs}
+                                        type="button"
+                                        disabled={!scoringEnabled}
+                                        onClick={() => recordOut(runs)}
+                                        className="bg-destructive hover:bg-destructive/90 min-h-14 rounded-xl text-lg font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        {runs}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
                     {state.balls_remaining === 0 && !state.is_complete && (
                         <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-4 text-center">
@@ -596,57 +680,97 @@ export default function ScoringIndex({
                         Undo last ball
                     </Button>
 
-                    <div>
-                        <h2 className="mb-2 text-sm font-semibold">
-                            Recent deliveries
-                        </h2>
-                        {recent.length === 0 ? (
-                            <p className="text-muted-foreground text-sm">
-                                No deliveries yet
-                            </p>
-                        ) : (
-                            <ul className="divide-y rounded-xl border">
-                                {recent.map((delivery) => (
-                                    <li
-                                        key={delivery.id}
-                                        className="flex items-center justify-between px-3 py-2 text-sm"
-                                    >
-                                        <span className="text-muted-foreground">
-                                            {delivery.over_no}.
-                                            {delivery.ball_no ?? '-'}
-                                        </span>
-                                        <div className="flex items-center gap-2">
-                                            {delivery.extra_type === 'wide' && (
-                                                <Badge variant="outline">
-                                                    wd
-                                                </Badge>
-                                            )}
-                                            {delivery.extra_type ===
-                                                'no_ball' && (
-                                                <Badge variant="outline">
-                                                    nb
-                                                </Badge>
-                                            )}
-                                            {delivery.is_out && (
-                                                <Badge variant="destructive">
+                    {isOurs ? (
+                        <div>
+                            <h2 className="mb-2 text-sm font-semibold">
+                                Upcoming pairs
+                            </h2>
+                            {upcomingPairs.length === 0 ? (
+                                <p className="text-muted-foreground text-sm">
+                                    No more pairs after this block
+                                </p>
+                            ) : (
+                                <ul className="divide-y rounded-xl border">
+                                    {upcomingPairs.map((pair) => (
+                                        <li
+                                            key={pair.position}
+                                            className="px-3 py-2 text-sm"
+                                        >
+                                            {pair.label}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    ) : (
+                        <div>
+                            <h2 className="mb-2 text-sm font-semibold">
+                                Bowling figures
+                            </h2>
+                            {bowlingFigures.length === 0 ? (
+                                <p className="text-muted-foreground text-sm">
+                                    No bowlers yet
+                                </p>
+                            ) : (
+                                <div className="overflow-x-auto rounded-xl border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Player</TableHead>
+                                                <TableHead className="text-right">
+                                                    O
+                                                </TableHead>
+                                                <TableHead className="text-right">
+                                                    R
+                                                </TableHead>
+                                                <TableHead className="text-right">
                                                     W
-                                                </Badge>
-                                            )}
-                                            <span
-                                                className={cn(
-                                                    'min-w-8 text-right font-semibold',
-                                                    delivery.runs < 0 &&
-                                                        'bg-destructive rounded px-1.5 text-center text-white',
-                                                )}
-                                            >
-                                                {delivery.runs}
-                                            </span>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
+                                                </TableHead>
+                                                <TableHead className="text-right">
+                                                    ECON
+                                                </TableHead>
+                                                <TableHead className="text-right">
+                                                    WD
+                                                </TableHead>
+                                                <TableHead className="text-right">
+                                                    NB
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {bowlingFigures.map((figure) => (
+                                                <TableRow key={figure.name}>
+                                                    <TableCell className="font-medium">
+                                                        {figure.name}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {figure.overs}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {figure.runs}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {figure.wickets}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {figure.economy.toFixed(
+                                                            1,
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {figure.wides}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {figure.no_balls}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </>

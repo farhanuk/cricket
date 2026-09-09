@@ -1,4 +1,4 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 
 type Team = {
     id: number;
@@ -23,7 +21,6 @@ type Fixture = {
     overs: number;
     balls_per_over: number;
     first_innings_team_id: number | null;
-    track_bowling_wickets: boolean;
 };
 
 type InningsSummary = {
@@ -88,18 +85,8 @@ export default function MatchIndex({
     result,
     match_started,
 }: PageProps) {
-    const settingsForm = useForm({
-        track_bowling_wickets: fixture.track_bowling_wickets,
-    });
-
     const startMatch = (batsFirst: 'us' | 'them') => {
         router.post(`/fixtures/${fixture.id}/score`, { bats_first: batsFirst });
-    };
-
-    const saveSettings = () => {
-        settingsForm.post(`/fixtures/${fixture.id}/match/settings`, {
-            preserveScroll: true,
-        });
     };
 
     const bothComplete =
@@ -112,6 +99,19 @@ export default function MatchIndex({
 
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <Heading title={`vs ${fixture.opponent}`} />
+
+                <div className="border-sidebar-border/70 dark:border-sidebar-border flex flex-wrap gap-2 rounded-xl border p-3">
+                    <Button variant="secondary" size="sm" asChild>
+                        <Link href={`/fixtures/${fixture.id}/selection`}>
+                            Select players
+                        </Link>
+                    </Button>
+                    <Button variant="secondary" size="sm" asChild>
+                        <Link href={`/fixtures/${fixture.id}/pairs`}>
+                            Batting pairs
+                        </Link>
+                    </Button>
+                </div>
 
                 {!match_started && (
                     <Card>
@@ -145,42 +145,6 @@ export default function MatchIndex({
 
                 {match_started && (
                     <>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Match settings</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex items-center gap-3">
-                                    <Checkbox
-                                        id="track_bowling_wickets"
-                                        checked={
-                                            settingsForm.data
-                                                .track_bowling_wickets
-                                        }
-                                        onCheckedChange={(checked) =>
-                                            settingsForm.setData(
-                                                'track_bowling_wickets',
-                                                checked === true,
-                                            )
-                                        }
-                                    />
-                                    <Label htmlFor="track_bowling_wickets">
-                                        Track wickets when bowling
-                                    </Label>
-                                </div>
-                            </CardContent>
-                            <CardFooter>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={settingsForm.processing}
-                                    onClick={saveSettings}
-                                >
-                                    Save settings
-                                </Button>
-                            </CardFooter>
-                        </Card>
-
                         {bothComplete && result && (
                             <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-4 text-center">
                                 <p className="text-lg font-semibold text-green-700 dark:text-green-300">

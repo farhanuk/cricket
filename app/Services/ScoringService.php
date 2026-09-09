@@ -160,6 +160,169 @@ class ScoringService
     }
 
     /**
+     * @return list<array{id: int, runs: int, extra_type: null|string}>
+     */
+    public function currentOverDeliveries(Innings $innings): array
+    {
+        $overNo = $this->state($innings)['over_no'];
+
+        return $innings->deliveries()
+            ->where('over_no', $overNo)
+            ->orderBy('id')
+            ->get(['id', 'runs', 'extra_type'])
+            ->map(fn (Delivery $delivery) => [
+                'id' => $delivery->id,
+                'runs' => $delivery->runs,
+                'extra_type' => $delivery->extra_type,
+            ])
+            ->values()
+            ->all();
+    }
+
+    public function currentOverBowlerId(Innings $innings): ?int
+    {
+        $overNo = $this->state($innings)['over_no'];
+
+        return $innings->deliveries()
+            ->where('over_no', $overNo)
+            ->whereNotNull('bowler_id')
+            ->orderBy('id')
+            ->value('bowler_id');
+    }
+
+    public function currentOverStrikerId(Innings $innings): ?int
+    {
+        $overNo = $this->state($innings)['over_no'];
+
+        return $innings->deliveries()
+            ->where('over_no', $overNo)
+            ->whereNotNull('striker_id')
+            ->orderByDesc('id')
+            ->value('striker_id');
+    }
+
+    public function previousOverBowlerId(Innings $innings): ?int
+    {
+        $currentOver = $this->state($innings)['over_no'];
+
+        if ($currentOver <= 1) {
+            return null;
+        }
+
+        return $innings->deliveries()
+            ->where('over_no', $currentOver - 1)
+            ->whereNotNull('bowler_id')
+            ->orderByDesc('id')
+            ->value('bowler_id');
+    }
+
+    /**
+     * @return list<array{
+     *     name: string,
+     *     overs: string,
+     *     runs: int,
+     *     wickets: int,
+     *     economy: float,
+     *     wides: int,
+     *     no_balls: int
+     * }>
+     */
+    public function bowlingFigures(Innings $innings): array
+    {
+        $innings->loadMissing('fixture');
+        $ballsPerOver = $innings->fixture->balls_per_over;
+
+        /** @var array<int, array{player_id: int, name: string, counting_balls: int, runs: int, wickets: int, wides: int, no_balls: int}> $byBowler */
+        $byBowler = [];
+
+        $deliveries = $innings->deliveries()
+            ->whereNotNull('bowler_id')
+            ->with('bowler')
+            ->get();
+
+        foreach ($deliveries as $delivery) {
+            $bowlerId = $delivery->bowler_id;
+
+            if (! isset($byBowler[$bowlerId])) {
+                $byBowler[$bowlerId] = [
+                    'player_id' => $bowlerId,
+                    'name' => $delivery->bowler->name,
+                    'counting_balls' => 0,
+                    'runs' => 0,
+                    'wickets' => 0,
+                    'wides' => 0,
+                    'no_balls' => 0,
+                ];
+            }
+
+            $byBowler[$bowlerId]['runs'] += $delivery->runs;
+
+            if ($delivery->is_out) {
+                $byBowler[$bowlerId]['wickets']++;
+            }
+
+            if ($delivery->extra_type === 'wide') {
+                $byBowler[$bowlerId]['wides']++;
+            }
+
+            if ($delivery->extra_type === 'no_ball') {
+                $byBowler[$bowlerId]['no_balls']++;
+            }
+
+            if ($delivery->counts_toward_over) {
+                $byBowler[$bowlerId]['counting_balls']++;
+            }
+        }
+
+        $figures = [];
+
+        foreach ($byBowler as $stats) {
+            $completedOvers = intdiv($stats['counting_balls'], $ballsPerOver);
+            $partialBalls = $stats['counting_balls'] % $ballsPerOver;
+            $oversDisplay = $partialBalls === 0
+                ? (string) $completedOvers
+                : "{$completedOvers}.{$partialBalls}";
+
+            $oversDecimal = $stats['counting_balls'] / $ballsPerOver;
+            $economy = $oversDecimal > 0
+                ? round($stats['runs'] / $oversDecimal, 1)
+                : 0.0;
+
+            $figures[] = [
+                'name' => $stats['name'],
+                'overs' => $oversDisplay,
+                'runs' => $stats['runs'],
+                'wickets' => $stats['wickets'],
+                'economy' => $economy,
+                'wides' => $stats['wides'],
+                'no_balls' => $stats['no_balls'],
+            ];
+        }
+
+        usort($figures, fn (array $a, array $b) => strcmp($a['name'], $b['name']));
+
+        return $figures;
+    }
+
+    /**
+     * @return list<array{position: int, label: string}>
+     */
+    public function upcomingPairs(Fixture $fixture, int $currentPairPosition): array
+    {
+        return $fixture->pairs()
+            ->with(['playerA', 'playerB'])
+            ->where('position', '>', $currentPairPosition)
+            ->orderBy('position')
+            ->get()
+            ->map(fn ($pair) => [
+                'position' => $pair->position,
+                'label' => "Pair {$pair->position}: {$pair->playerA->name} & {$pair->playerB->name}",
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return array{
      *     status: 'ours_win'|'opposition_win'|'tie',
      *     margin: int,
