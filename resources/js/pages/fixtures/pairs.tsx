@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import Heading from '@/components/heading';
+import MatchHomeButton from '@/components/match-home-button';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
@@ -135,11 +136,9 @@ export default function FixturesPairs({
         <>
             <Head title={`Batting pairs vs ${fixture.opponent}`} />
 
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <TextLink href={`/fixtures/${fixture.id}/match`}>
-                    ← Back to match
-                </TextLink>
+            <MatchHomeButton fixtureId={fixture.id} />
 
+            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <Heading title={`Batting pairs vs ${fixture.opponent}`} />
 
                 <form onSubmit={submit} className="max-w-xl space-y-6">

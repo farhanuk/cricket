@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import Heading from '@/components/heading';
+import MatchHomeButton from '@/components/match-home-button';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
@@ -58,11 +59,9 @@ export default function FixturesSelection({
         <>
             <Head title={`Select squad vs ${fixture.opponent}`} />
 
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <TextLink href={`/fixtures/${fixture.id}/match`}>
-                    ← Back to match
-                </TextLink>
+            <MatchHomeButton fixtureId={fixture.id} />
 
+            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <Heading title={`Select squad vs ${fixture.opponent}`} />
 
                 <p

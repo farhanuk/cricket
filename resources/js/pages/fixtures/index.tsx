@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,26 +10,36 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 import { create, index } from '@/routes/fixtures';
-
-type Season = {
-    id: number;
-    name: string;
-};
 
 type Fixture = {
     id: number;
     opponent: string;
     played_at: string | null;
-    venue: string | null;
-    overs: number;
-    status: string;
-    season: Season;
 };
 
 type PageProps = {
     fixtures: Fixture[];
 };
+
+function startOfToday(): Date {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return today;
+}
+
+function isPastFixture(playedAt: string | null): boolean {
+    if (!playedAt) {
+        return false;
+    }
+
+    const date = new Date(playedAt);
+    date.setHours(0, 0, 0, 0);
+
+    return date < startOfToday();
+}
 
 function formatDate(value: string | null): string {
     if (!value) {
@@ -43,8 +53,39 @@ function formatDate(value: string | null): string {
     });
 }
 
-function formatStatus(status: string): string {
-    return status.charAt(0).toUpperCase() + status.slice(1);
+function FixtureStatusBadge({ playedAt }: { playedAt: string | null }) {
+    const past = isPastFixture(playedAt);
+
+    if (past) {
+        return <Badge variant="secondary">Played</Badge>;
+    }
+
+    return (
+        <Badge className="border-green-500/30 bg-green-600 text-white hover:bg-green-600/90">
+            Upcoming
+        </Badge>
+    );
+}
+
+function FixtureDate({
+    playedAt,
+    className,
+}: {
+    playedAt: string | null;
+    className?: string;
+}) {
+    return (
+        <span
+            className={cn(
+                isPastFixture(playedAt)
+                    ? 'text-muted-foreground'
+                    : 'text-foreground',
+                className,
+            )}
+        >
+            {formatDate(playedAt)}
+        </span>
+    );
 }
 
 export default function FixturesIndex({ fixtures }: PageProps) {
@@ -72,81 +113,75 @@ export default function FixturesIndex({ fixtures }: PageProps) {
                         </Button>
                     </div>
                 ) : (
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Opponent</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Venue</TableHead>
-                                    <TableHead>Overs</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">
-                                        Actions
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {fixtures.map((fixture) => (
-                                    <TableRow key={fixture.id}>
-                                        <TableCell>{fixture.opponent}</TableCell>
-                                        <TableCell>
-                                            {formatDate(fixture.played_at)}
-                                        </TableCell>
-                                        <TableCell>
-                                            {fixture.venue ?? '—'}
-                                        </TableCell>
-                                        <TableCell>{fixture.overs}</TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                variant={
-                                                    fixture.status ===
-                                                    'scheduled'
-                                                        ? 'default'
-                                                        : 'secondary'
-                                                }
-                                            >
-                                                {formatStatus(fixture.status)}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <Link
-                                                        href={`/fixtures/${fixture.id}/selection`}
-                                                    >
-                                                        Select squad
-                                                    </Link>
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <Link
-                                                        href={`/fixtures/${fixture.id}/pairs`}
-                                                    >
-                                                        Pairs
-                                                    </Link>
-                                                </Button>
-                                                <Button size="sm" asChild>
-                                                    <Link
-                                                        href={`/fixtures/${fixture.id}/match`}
-                                                    >
-                                                        Match
-                                                    </Link>
-                                                </Button>
-                                            </div>
-                                        </TableCell>
+                    <>
+                        <div className="border-sidebar-border/70 dark:border-sidebar-border hidden rounded-xl border sm:block">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Opponent</TableHead>
+                                        <TableHead>Status</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
+                                </TableHeader>
+                                <TableBody>
+                                    {fixtures.map((fixture) => (
+                                        <TableRow
+                                            key={fixture.id}
+                                            className="hover:bg-muted/50 cursor-pointer"
+                                            onClick={() =>
+                                                router.visit(
+                                                    `/fixtures/${fixture.id}/match`,
+                                                )
+                                            }
+                                        >
+                                            <TableCell>
+                                                <FixtureDate
+                                                    playedAt={
+                                                        fixture.played_at
+                                                    }
+                                                />
+                                            </TableCell>
+                                            <TableCell className="font-medium">
+                                                {fixture.opponent}
+                                            </TableCell>
+                                            <TableCell>
+                                                <FixtureStatusBadge
+                                                    playedAt={
+                                                        fixture.played_at
+                                                    }
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+
+                        <div className="space-y-3 sm:hidden">
+                            {fixtures.map((fixture) => (
+                                <Link
+                                    key={fixture.id}
+                                    href={`/fixtures/${fixture.id}/match`}
+                                    className="border-sidebar-border/70 dark:border-sidebar-border hover:bg-muted/50 block rounded-xl border p-4 transition-colors"
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-base font-semibold">
+                                                {fixture.opponent}
+                                            </p>
+                                            <FixtureDate
+                                                playedAt={fixture.played_at}
+                                                className="mt-1 block text-sm"
+                                            />
+                                        </div>
+                                        <FixtureStatusBadge
+                                            playedAt={fixture.played_at}
+                                        />
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    </>
                 )}
             </div>
         </>
