@@ -2,8 +2,18 @@ import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+
+const PAIR_CHECKPOINT_OVERS = [4, 7, 10] as const;
 
 type Player = {
     id: number;
@@ -83,6 +93,25 @@ export default function ScoringIndex({
     const [showOutOptions, setShowOutOptions] = useState(false);
     const [moreRuns, setMoreRuns] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [acknowledgedCheckpointOvers, setAcknowledgedCheckpointOvers] =
+        useState<number[]>([]);
+
+    const pairCheckpointActive =
+        innings.batting_side === 'us' &&
+        PAIR_CHECKPOINT_OVERS.includes(
+            state.over_no as (typeof PAIR_CHECKPOINT_OVERS)[number],
+        ) &&
+        state.balls_bowled_this_over === 0 &&
+        !acknowledgedCheckpointOvers.includes(state.over_no) &&
+        state.current_pair !== null;
+
+    const acknowledgePairCheckpoint = () => {
+        setAcknowledgedCheckpointOvers((current) =>
+            current.includes(state.over_no)
+                ? current
+                : [...current, state.over_no],
+        );
+    };
 
     const pairPlayerIds =
         state.current_pair?.players.map((player) => player.id) ?? [];
@@ -208,6 +237,47 @@ export default function ScoringIndex({
     return (
         <>
             <Head title={`Score vs ${fixture.opponent}`} />
+
+            <Dialog open={pairCheckpointActive}>
+                <DialogContent
+                    className="[&>button.absolute]:hidden"
+                    onInteractOutside={(event) => event.preventDefault()}
+                    onEscapeKeyDown={(event) => event.preventDefault()}
+                >
+                    <DialogHeader>
+                        <DialogTitle>Next pair coming in</DialogTitle>
+                        {state.current_pair && (
+                            <DialogDescription className="text-base">
+                                Pair {state.current_pair.position} —{' '}
+                                {state.current_pair.players
+                                    .map((player) => player.name)
+                                    .join(' & ')}
+                            </DialogDescription>
+                        )}
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="min-h-12 flex-1"
+                            onClick={() =>
+                                router.visit(
+                                    `/fixtures/${fixture.id}/pairs`,
+                                )
+                            }
+                        >
+                            Manage pairs
+                        </Button>
+                        <Button
+                            type="button"
+                            className="min-h-12 flex-1"
+                            onClick={acknowledgePairCheckpoint}
+                        >
+                            Continue
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <div className="mx-auto flex min-h-full w-full max-w-lg flex-col pb-6">
                 <div className="bg-background/95 sticky top-0 z-10 border-b px-4 py-4 backdrop-blur">
