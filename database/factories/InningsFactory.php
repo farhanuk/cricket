@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Fixture;
 use App\Models\Innings;
+use App\Models\Team;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -20,7 +21,7 @@ class InningsFactory extends Factory
     {
         return [
             'fixture_id' => Fixture::factory(),
-            'batting_side' => 'us',
+            'batting_team_id' => Team::factory(),
             'sequence' => 1,
         ];
     }

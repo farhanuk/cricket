@@ -14,15 +14,16 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $fixture_id
- * @property string $batting_side
+ * @property int|null $batting_team_id
  * @property int $sequence
  * @property Carbon|null $completed_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Fixture $fixture
+ * @property-read Team|null $battingTeam
  * @property-read Collection<int, Delivery> $deliveries
  */
-#[Fillable(['fixture_id', 'batting_side', 'sequence', 'completed_at'])]
+#[Fillable(['fixture_id', 'batting_team_id', 'sequence', 'completed_at'])]
 class Innings extends Model
 {
     /** @use HasFactory<InningsFactory> */
@@ -49,10 +50,25 @@ class Innings extends Model
     }
 
     /**
+     * @return BelongsTo<Team, $this>
+     */
+    public function battingTeam(): BelongsTo
+    {
+        return $this->belongsTo(Team::class, 'batting_team_id');
+    }
+
+    /**
      * @return HasMany<Delivery, $this>
      */
     public function deliveries(): HasMany
     {
         return $this->hasMany(Delivery::class);
+    }
+
+    public function isOurs(): bool
+    {
+        $this->loadMissing('fixture.season');
+
+        return $this->batting_team_id === $this->fixture->season->team_id;
     }
 }

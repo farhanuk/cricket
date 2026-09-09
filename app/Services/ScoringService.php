@@ -35,15 +35,18 @@ class ScoringService
             : null;
 
         $strikerId = $input['striker_id'] ?? null;
+        $bowlerId = $input['bowler_id'] ?? null;
         $pairId = null;
 
-        if ($innings->batting_side === 'us') {
+        if ($innings->isOurs()) {
             $pairPosition = $this->pairPositionForOver($fixture, $overNo);
             $pairId = $fixture->pairs()
                 ->where('position', $pairPosition)
                 ->value('id');
+            $bowlerId = null;
         } else {
             $strikerId = null;
+            $pairId = null;
         }
 
         return $innings->deliveries()->create([
@@ -51,7 +54,7 @@ class ScoringService
             'over_no' => $overNo,
             'ball_no' => $ballNo,
             'striker_id' => $strikerId,
-            'bowler_id' => $input['bowler_id'] ?? null,
+            'bowler_id' => $bowlerId,
             'runs' => $input['runs'],
             'is_out' => $input['is_out'] ?? false,
             'extra_type' => $extraType,
@@ -97,7 +100,7 @@ class ScoringService
 
         $currentPair = null;
 
-        if ($innings->batting_side === 'us') {
+        if ($innings->isOurs()) {
             $pairPosition = $this->pairPositionForOver($fixture, $overNo);
             $pair = $fixture->pairs()
                 ->with(['playerA', 'playerB'])
@@ -154,6 +157,68 @@ class ScoringService
         }
 
         return $totals;
+    }
+
+    /**
+     * @return array{
+     *     status: 'ours_win'|'opposition_win'|'tie',
+     *     margin: int,
+     *     our_total: int,
+     *     opp_total: int
+     * }
+     */
+    public function result(Fixture $fixture): array
+    {
+        $fixture->load(['innings' => fn ($query) => $query->orderBy('sequence'), 'season']);
+
+        $innings = $fixture->innings;
+
+        if ($innings->count() !== 2) {
+            throw new RuntimeException('Both innings are required to calculate a result.');
+        }
+
+        foreach ($innings as $inningsEntry) {
+            if ($inningsEntry->completed_at === null) {
+                throw new RuntimeException('Both innings must be complete to calculate a result.');
+            }
+        }
+
+        $teamId = $fixture->season->team_id;
+
+        $ourInnings = $innings->first(fn (Innings $entry) => $entry->batting_team_id === $teamId);
+        $oppInnings = $innings->first(fn (Innings $entry) => $entry->batting_team_id === null);
+
+        if ($ourInnings === null || $oppInnings === null) {
+            throw new RuntimeException('Could not identify our and opposition innings.');
+        }
+
+        $ourTotal = (int) $ourInnings->deliveries()->sum('runs');
+        $oppTotal = (int) $oppInnings->deliveries()->sum('runs');
+
+        if ($ourTotal > $oppTotal) {
+            return [
+                'status' => 'ours_win',
+                'margin' => $ourTotal - $oppTotal,
+                'our_total' => $ourTotal,
+                'opp_total' => $oppTotal,
+            ];
+        }
+
+        if ($oppTotal > $ourTotal) {
+            return [
+                'status' => 'opposition_win',
+                'margin' => $oppTotal - $ourTotal,
+                'our_total' => $ourTotal,
+                'opp_total' => $oppTotal,
+            ];
+        }
+
+        return [
+            'status' => 'tie',
+            'margin' => 0,
+            'our_total' => $ourTotal,
+            'opp_total' => $oppTotal,
+        ];
     }
 
     protected function countingDeliveries(Innings $innings): int

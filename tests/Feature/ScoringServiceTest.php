@@ -46,11 +46,11 @@ function createUsInningsSetup(): array
     }
 
     $innings = Innings::factory()->for($fixture)->create([
-        'batting_side' => 'us',
+        'batting_team_id' => $team->id,
         'sequence' => 1,
     ]);
 
-    return compact('fixture', 'innings', 'players');
+    return compact('fixture', 'innings', 'players', 'team');
 }
 
 function recordNormalDeliveries(Innings $innings, int $count, array $overrides = []): void
