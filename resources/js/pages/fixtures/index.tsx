@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -132,6 +132,16 @@ export default function FixturesIndex({ fixtures }: PageProps) {
                                                     >
                                                         Pairs
                                                     </Link>
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        router.post(
+                                                            `/fixtures/${fixture.id}/score`,
+                                                        )
+                                                    }
+                                                >
+                                                    Score
                                                 </Button>
                                             </div>
                                         </TableCell>

@@ -156,16 +156,36 @@ test('us innings assigns pair position 2 in over 4 and position 3 in over 7', fu
         ->and($overSeven->pair_id)->toBe($pairThree->id);
 });
 
-test('isComplete becomes true after overs times balls per over legal deliveries', function () {
+test('isComplete is based on completed_at not ball count', function () {
     ['innings' => $innings] = createUsInningsSetup();
 
     expect(scoringService()->isComplete($innings))->toBeFalse();
 
     recordNormalDeliveries($innings, 72);
 
+    expect(scoringService()->isComplete($innings))->toBeFalse()
+        ->and(scoringService()->state($innings)['is_complete'])->toBeFalse()
+        ->and(scoringService()->state($innings)['balls_remaining'])->toBe(0);
+
+    $innings->update(['completed_at' => now()]);
+
     expect(scoringService()->isComplete($innings))->toBeTrue()
         ->and(scoringService()->state($innings)['is_complete'])->toBeTrue();
 });
+
+test('record throws only when the innings has been explicitly completed', function () {
+    ['innings' => $innings] = createUsInningsSetup();
+
+    recordNormalDeliveries($innings, 72);
+
+    scoringService()->record($innings, ['runs' => 1]);
+
+    expect($innings->deliveries()->count())->toBe(73);
+
+    $innings->update(['completed_at' => now()]);
+
+    scoringService()->record($innings, ['runs' => 1]);
+})->throws(RuntimeException::class, 'Innings is already complete.');
 
 test('undoLast removes exactly the last delivery', function () {
     ['innings' => $innings] = createUsInningsSetup();

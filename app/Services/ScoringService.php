@@ -70,11 +70,7 @@ class ScoringService
 
     public function isComplete(Innings $innings): bool
     {
-        $innings->loadMissing('fixture');
-        $fixture = $innings->fixture;
-
-        return $this->countingDeliveries($innings)
-            >= $fixture->overs * $fixture->balls_per_over;
+        return $innings->completed_at !== null;
     }
 
     /**
@@ -86,6 +82,7 @@ class ScoringService
      *     total_runs: int,
      *     wickets: int,
      *     is_complete: bool,
+     *     balls_remaining: int,
      *     current_pair: array{position: int, players: list<array{id: int, name: string, squad_number: int|null}>}|null
      * }
      */
@@ -95,6 +92,7 @@ class ScoringService
         $fixture = $innings->fixture;
         $ballsPerOver = $fixture->balls_per_over;
         $countingSoFar = $this->countingDeliveries($innings);
+        $legalBallLimit = $fixture->overs * $ballsPerOver;
         $overNo = intdiv($countingSoFar, $ballsPerOver) + 1;
 
         $currentPair = null;
@@ -124,7 +122,8 @@ class ScoringService
             'is_last_over' => $overNo === $fixture->overs,
             'total_runs' => (int) $innings->deliveries()->sum('runs'),
             'wickets' => $innings->deliveries()->where('is_out', true)->count(),
-            'is_complete' => $this->isComplete($innings),
+            'is_complete' => $innings->completed_at !== null,
+            'balls_remaining' => max(0, $legalBallLimit - $countingSoFar),
             'current_pair' => $currentPair,
         ];
     }
