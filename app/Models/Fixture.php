@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use Database\Factories\FixtureFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -28,6 +30,9 @@ use Illuminate\Support\Carbon;
 #[Fillable(['season_id', 'opponent', 'played_at', 'venue', 'overs', 'balls_per_over', 'status'])]
 class Fixture extends Model
 {
+    /** @use HasFactory<FixtureFactory> */
+    use HasFactory;
+
     /**
      * @return BelongsTo<Season, $this>
      */
