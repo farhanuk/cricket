@@ -12,6 +12,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('fixtures', [FixtureController::class, 'index'])->name('fixtures.index');
     Route::get('fixtures/create', [FixtureController::class, 'create'])->name('fixtures.create');
     Route::post('fixtures', [FixtureController::class, 'store'])->name('fixtures.store');
+    Route::get('fixtures/{fixture}/selection', [FixtureController::class, 'selection'])->name('fixtures.selection');
+    Route::post('fixtures/{fixture}/selection', [FixtureController::class, 'storeSelection'])->name('fixtures.selection.store');
 });
 
 require __DIR__.'/settings.php';

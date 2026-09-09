@@ -81,6 +81,9 @@ export default function FixturesIndex({ fixtures }: PageProps) {
                                     <TableHead>Venue</TableHead>
                                     <TableHead>Overs</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">
+                                        Actions
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -105,6 +108,19 @@ export default function FixturesIndex({ fixtures }: PageProps) {
                                             >
                                                 {formatStatus(fixture.status)}
                                             </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                asChild
+                                            >
+                                                <Link
+                                                    href={`/fixtures/${fixture.id}/selection`}
+                                                >
+                                                    Select squad
+                                                </Link>
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
