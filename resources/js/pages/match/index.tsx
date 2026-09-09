@@ -111,6 +111,11 @@ export default function MatchIndex({
                             Batting pairs
                         </Link>
                     </Button>
+                    <Button variant="secondary" size="sm" asChild>
+                        <Link href={`/fixtures/${fixture.id}/scorecard`}>
+                            View scorecard
+                        </Link>
+                    </Button>
                 </div>
 
                 {!match_started && (

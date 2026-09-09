@@ -4,6 +4,7 @@ use App\Http\Controllers\FixtureController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\ScoringController;
+use App\Http\Controllers\StatsController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
@@ -19,6 +20,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('fixtures/{fixture}/pairs', [FixtureController::class, 'pairs'])->name('fixtures.pairs');
     Route::post('fixtures/{fixture}/pairs', [FixtureController::class, 'storePairs'])->name('fixtures.pairs.store');
     Route::get('fixtures/{fixture}/match', [MatchController::class, 'show'])->name('fixtures.match');
+    Route::get('fixtures/{fixture}/scorecard', [MatchController::class, 'scorecard'])->name('fixtures.scorecard');
+    Route::get('stats', [StatsController::class, 'index'])->name('stats.index');
     Route::post('fixtures/{fixture}/score', [ScoringController::class, 'start'])->name('scoring.start');
     Route::get('innings/{innings}/score', [ScoringController::class, 'show'])->name('scoring.show');
     Route::post('innings/{innings}/deliveries', [ScoringController::class, 'record'])->name('scoring.record');

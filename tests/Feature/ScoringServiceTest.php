@@ -8,6 +8,7 @@ use App\Models\Season;
 use App\Models\Selection;
 use App\Models\Team;
 use App\Services\ScoringService;
+use App\Services\StatsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -15,6 +16,11 @@ uses(RefreshDatabase::class);
 function scoringService(): ScoringService
 {
     return app(ScoringService::class);
+}
+
+function statsService(): StatsService
+{
+    return app(StatsService::class);
 }
 
 function createUsInningsSetup(): array
@@ -254,7 +260,7 @@ test('batting figures aggregate net runs, boundaries, balls, and dismissals', fu
         'is_out' => true,
     ]);
 
-    $figures = scoringService()->battingFigures($innings);
+    $figures = statsService()->battingCard($innings);
 
     expect($figures)->toHaveCount(1)
         ->and($figures[0]['runs'])->toBe(5)

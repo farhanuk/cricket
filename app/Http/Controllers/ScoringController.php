@@ -6,6 +6,7 @@ use App\Models\Fixture;
 use App\Models\Innings;
 use App\Models\Player;
 use App\Services\ScoringService;
+use App\Services\StatsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -67,7 +68,7 @@ class ScoringController extends Controller
     /**
      * Show the scoring screen for an innings.
      */
-    public function show(Innings $innings, ScoringService $scoringService): Response
+    public function show(Innings $innings, ScoringService $scoringService, StatsService $statsService): Response
     {
         $innings->load(['fixture.season.team', 'fixture.selections.player']);
 
@@ -105,12 +106,12 @@ class ScoringController extends Controller
             $currentPairPosition = $state['current_pair']['position'] ?? 0;
 
             $payload['lastStrikerId'] = $scoringService->currentOverStrikerId($innings);
-            $payload['battingFigures'] = $scoringService->battingFigures($innings);
+            $payload['battingFigures'] = $statsService->battingCard($innings);
             $payload['upcomingPairs'] = $scoringService->upcomingPairs($fixture, $currentPairPosition);
         } else {
             $payload['currentOverBowlerId'] = $scoringService->currentOverBowlerId($innings);
             $payload['previousOverBowlerId'] = $scoringService->previousOverBowlerId($innings);
-            $payload['bowlingFigures'] = $scoringService->bowlingFigures($innings);
+            $payload['bowlingFigures'] = $statsService->bowlingCard($innings);
         }
 
         return Inertia::render('scoring/index', $payload);
