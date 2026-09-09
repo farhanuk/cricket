@@ -1,4 +1,5 @@
 import { createInertiaApp } from '@inertiajs/react';
+import { registerSW } from 'virtual:pwa-register';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
@@ -38,3 +39,7 @@ void createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
+
+if (import.meta.env.PROD) {
+    registerSW({ immediate: true });
+}

@@ -6,6 +6,7 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
 import { defineConfig, lazyPlugins } from 'vite-plus';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
     plugins: lazyPlugins(() => [
@@ -26,6 +27,52 @@ export default defineConfig({
         tailwindcss(),
         wayfinder({
             formVariants: true,
+        }),
+        VitePWA({
+            registerType: 'autoUpdate',
+            scope: '/',
+            includeAssets: [
+                'favicon.ico',
+                'favicon.svg',
+                'apple-touch-icon.png',
+                'pwa-192x192.png',
+                'pwa-512x512.png',
+                'pwa-512x512-maskable.png',
+            ],
+            manifest: {
+                name: 'Drive to Survive Cricket',
+                short_name: 'DTS Cricket',
+                theme_color: '#252525',
+                background_color: '#252525',
+                display: 'standalone',
+                scope: '/',
+                start_url: '/dashboard',
+                icons: [
+                    {
+                        src: '/pwa-192x192.png',
+                        sizes: '192x192',
+                        type: 'image/png',
+                    },
+                    {
+                        src: '/pwa-512x512.png',
+                        sizes: '512x512',
+                        type: 'image/png',
+                    },
+                    {
+                        src: '/pwa-512x512-maskable.png',
+                        sizes: '512x512',
+                        type: 'image/png',
+                        purpose: 'maskable',
+                    },
+                ],
+            },
+            workbox: {
+                globPatterns: [
+                    '**/*.{js,css,html,ico,png,svg,woff,woff2,webmanifest}',
+                ],
+                navigateFallback: null,
+                runtimeCaching: [],
+            },
         }),
     ]),
     server: {
