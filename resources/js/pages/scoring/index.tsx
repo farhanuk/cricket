@@ -71,6 +71,16 @@ type BowlingFigure = {
     no_balls: number;
 };
 
+type BattingFigure = {
+    player: string;
+    runs: number;
+    balls: number;
+    fours: number;
+    fives: number;
+    sixes: number;
+    dismissals: number;
+};
+
 type UpcomingPair = {
     position: number;
     label: string;
@@ -100,6 +110,7 @@ type BasePageProps = {
 type OursPageProps = BasePageProps & {
     isOurs: true;
     lastStrikerId: number | null;
+    battingFigures: BattingFigure[];
     upcomingPairs: UpcomingPair[];
 };
 
@@ -173,6 +184,7 @@ export default function ScoringIndex(props: PageProps) {
     } = props;
 
     const lastStrikerId = props.isOurs ? props.lastStrikerId : null;
+    const battingFigures = props.isOurs ? props.battingFigures : [];
     const upcomingPairs = props.isOurs ? props.upcomingPairs : [];
     const currentOverBowlerId = props.isOurs
         ? null
@@ -677,27 +689,103 @@ export default function ScoringIndex(props: PageProps) {
                     </Button>
 
                     {isOurs ? (
-                        <div>
-                            <h2 className="mb-2 text-sm font-semibold">
-                                Upcoming pairs
-                            </h2>
-                            {upcomingPairs.length === 0 ? (
-                                <p className="text-muted-foreground text-sm">
-                                    No more pairs after this block
-                                </p>
-                            ) : (
-                                <ul className="divide-y rounded-xl border">
-                                    {upcomingPairs.map((pair) => (
-                                        <li
-                                            key={pair.position}
-                                            className="px-3 py-2 text-sm"
-                                        >
-                                            {pair.label}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
+                        <>
+                            <div>
+                                <h2 className="mb-2 text-sm font-semibold">
+                                    Batting figures
+                                </h2>
+                                {battingFigures.length === 0 ? (
+                                    <p className="text-muted-foreground text-sm">
+                                        No batters yet
+                                    </p>
+                                ) : (
+                                    <div className="overflow-x-auto rounded-xl border">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead className="min-w-[5rem]">
+                                                        Player
+                                                    </TableHead>
+                                                    <TableHead className="w-8 px-1 text-right">
+                                                        R
+                                                    </TableHead>
+                                                    <TableHead className="w-8 px-1 text-right">
+                                                        B
+                                                    </TableHead>
+                                                    <TableHead className="w-8 px-1 text-right">
+                                                        4
+                                                    </TableHead>
+                                                    <TableHead className="w-8 px-1 text-right">
+                                                        5
+                                                    </TableHead>
+                                                    <TableHead className="w-8 px-1 text-right">
+                                                        6
+                                                    </TableHead>
+                                                    <TableHead className="w-8 px-1 text-right">
+                                                        W
+                                                    </TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {battingFigures.map(
+                                                    (figure) => (
+                                                        <TableRow
+                                                            key={figure.player}
+                                                        >
+                                                            <TableCell className="px-2 py-2 text-xs font-medium">
+                                                                {figure.player}
+                                                            </TableCell>
+                                                            <TableCell className="px-1 py-2 text-right text-xs">
+                                                                {figure.runs}
+                                                            </TableCell>
+                                                            <TableCell className="px-1 py-2 text-right text-xs">
+                                                                {figure.balls}
+                                                            </TableCell>
+                                                            <TableCell className="px-1 py-2 text-right text-xs">
+                                                                {figure.fours}
+                                                            </TableCell>
+                                                            <TableCell className="px-1 py-2 text-right text-xs">
+                                                                {figure.fives}
+                                                            </TableCell>
+                                                            <TableCell className="px-1 py-2 text-right text-xs">
+                                                                {figure.sixes}
+                                                            </TableCell>
+                                                            <TableCell className="px-1 py-2 text-right text-xs">
+                                                                {
+                                                                    figure.dismissals
+                                                                }
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ),
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div>
+                                <h2 className="mb-2 text-sm font-semibold">
+                                    Upcoming pairs
+                                </h2>
+                                {upcomingPairs.length === 0 ? (
+                                    <p className="text-muted-foreground text-sm">
+                                        No more pairs after this block
+                                    </p>
+                                ) : (
+                                    <ul className="divide-y rounded-xl border">
+                                        {upcomingPairs.map((pair) => (
+                                            <li
+                                                key={pair.position}
+                                                className="px-3 py-2 text-sm"
+                                            >
+                                                {pair.label}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        </>
                     ) : (
                         <div>
                             <h2 className="mb-2 text-sm font-semibold">

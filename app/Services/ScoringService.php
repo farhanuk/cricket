@@ -305,6 +305,123 @@ class ScoringService
     }
 
     /**
+     * @return list<array{
+     *     player: string,
+     *     runs: int,
+     *     balls: int,
+     *     fours: int,
+     *     fives: int,
+     *     sixes: int,
+     *     dismissals: int
+     * }>
+     */
+    public function battingFigures(Innings $innings): array
+    {
+        $innings->loadMissing('fixture');
+        $fixture = $innings->fixture;
+
+        /** @var array<int, array{position: int, order: int}> $battingOrder */
+        $battingOrder = [];
+
+        foreach ($fixture->pairs()->get(['position', 'player_a_id', 'player_b_id']) as $pair) {
+            $battingOrder[$pair->player_a_id] = ['position' => $pair->position, 'order' => 0];
+            $battingOrder[$pair->player_b_id] = ['position' => $pair->position, 'order' => 1];
+        }
+
+        /** @var array<int, array{player_id: int, player: string, runs: int, balls: int, fours: int, fives: int, sixes: int, dismissals: int, first_delivery_id: int}> $byStriker */
+        $byStriker = [];
+
+        $deliveries = $innings->deliveries()
+            ->whereNotNull('striker_id')
+            ->with('striker')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($deliveries as $delivery) {
+            $strikerId = $delivery->striker_id;
+
+            if (! isset($byStriker[$strikerId])) {
+                $squadNumber = $delivery->striker->squad_number;
+                $byStriker[$strikerId] = [
+                    'player_id' => $strikerId,
+                    'player' => ($squadNumber !== null ? "{$squadNumber} " : '').$delivery->striker->name,
+                    'runs' => 0,
+                    'balls' => 0,
+                    'fours' => 0,
+                    'fives' => 0,
+                    'sixes' => 0,
+                    'dismissals' => 0,
+                    'first_delivery_id' => $delivery->id,
+                ];
+            }
+
+            $byStriker[$strikerId]['runs'] += $delivery->runs;
+
+            if ($delivery->counts_toward_over) {
+                $byStriker[$strikerId]['balls']++;
+            }
+
+            if ($delivery->runs === 4 && ! $delivery->is_out && $delivery->extra_type === null) {
+                $byStriker[$strikerId]['fours']++;
+            }
+
+            if ($delivery->runs === 5 && ! $delivery->is_out && $delivery->extra_type === null) {
+                $byStriker[$strikerId]['fives']++;
+            }
+
+            if ($delivery->runs === 6 && ! $delivery->is_out && $delivery->extra_type === null) {
+                $byStriker[$strikerId]['sixes']++;
+            }
+
+            if ($delivery->is_out) {
+                $byStriker[$strikerId]['dismissals']++;
+            }
+        }
+
+        $figures = array_values(array_filter(
+            $byStriker,
+            fn (array $stats) => $stats['balls'] >= 1,
+        ));
+
+        usort($figures, function (array $a, array $b) use ($battingOrder): int {
+            $orderA = $battingOrder[$a['player_id']] ?? null;
+            $orderB = $battingOrder[$b['player_id']] ?? null;
+
+            if ($orderA !== null && $orderB !== null) {
+                if ($orderA['position'] !== $orderB['position']) {
+                    return $orderA['position'] <=> $orderB['position'];
+                }
+
+                return $orderA['order'] <=> $orderB['order'];
+            }
+
+            if ($orderA !== null) {
+                return -1;
+            }
+
+            if ($orderB !== null) {
+                return 1;
+            }
+
+            if ($a['runs'] !== $b['runs']) {
+                return $b['runs'] <=> $a['runs'];
+            }
+
+            return $a['first_delivery_id'] <=> $b['first_delivery_id'];
+        });
+
+        return array_map(fn (array $stats) => [
+            'player' => $stats['player'],
+            'runs' => $stats['runs'],
+            'balls' => $stats['balls'],
+            'fours' => $stats['fours'],
+            'fives' => $stats['fives'],
+            'sixes' => $stats['sixes'],
+            'dismissals' => $stats['dismissals'],
+        ], $figures);
+    }
+
+    /**
      * @return list<array{position: int, label: string}>
      */
     public function upcomingPairs(Fixture $fixture, int $currentPairPosition): array

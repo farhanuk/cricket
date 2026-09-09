@@ -105,6 +105,7 @@ class ScoringController extends Controller
             $currentPairPosition = $state['current_pair']['position'] ?? 0;
 
             $payload['lastStrikerId'] = $scoringService->currentOverStrikerId($innings);
+            $payload['battingFigures'] = $scoringService->battingFigures($innings);
             $payload['upcomingPairs'] = $scoringService->upcomingPairs($fixture, $currentPairPosition);
         } else {
             $payload['currentOverBowlerId'] = $scoringService->currentOverBowlerId($innings);

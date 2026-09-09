@@ -236,6 +236,34 @@ test('player run totals follow striker_id after mid-innings pair edits', functio
         ->and($totalsAfter[$playerB->id]['balls_faced'])->toBe(2);
 });
 
+test('batting figures aggregate net runs, boundaries, balls, and dismissals', function () {
+    ['innings' => $innings, 'players' => $players] = createUsInningsSetup();
+    $striker = $players[0];
+
+    scoringService()->record($innings, [
+        'striker_id' => $striker->id,
+        'runs' => 4,
+    ]);
+    scoringService()->record($innings, [
+        'striker_id' => $striker->id,
+        'runs' => 6,
+    ]);
+    scoringService()->record($innings, [
+        'striker_id' => $striker->id,
+        'runs' => -5,
+        'is_out' => true,
+    ]);
+
+    $figures = scoringService()->battingFigures($innings);
+
+    expect($figures)->toHaveCount(1)
+        ->and($figures[0]['runs'])->toBe(5)
+        ->and($figures[0]['balls'])->toBe(3)
+        ->and($figures[0]['fours'])->toBe(1)
+        ->and($figures[0]['sixes'])->toBe(1)
+        ->and($figures[0]['dismissals'])->toBe(1);
+});
+
 test('undoLast removes exactly the last delivery', function () {
     ['innings' => $innings] = createUsInningsSetup();
 
