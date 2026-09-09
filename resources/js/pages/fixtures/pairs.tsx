@@ -68,32 +68,6 @@ function formatPlayerLabel(player: Player): string {
     return `${player.squad_number ?? '—'} ${player.name}`;
 }
 
-function getSelectedIds(
-    pairs: PairSlot[],
-    excludeIndex: number,
-    excludeField: 'player_a_id' | 'player_b_id',
-): number[] {
-    return pairs.flatMap((pair, index) => {
-        const ids: number[] = [];
-
-        if (
-            pair.player_a_id !== null &&
-            !(index === excludeIndex && excludeField === 'player_a_id')
-        ) {
-            ids.push(pair.player_a_id);
-        }
-
-        if (
-            pair.player_b_id !== null &&
-            !(index === excludeIndex && excludeField === 'player_b_id')
-        ) {
-            ids.push(pair.player_b_id);
-        }
-
-        return ids;
-    });
-}
-
 function getAllSelectedIds(pairs: PairSlot[]): number[] {
     return pairs.flatMap((pair) =>
         [pair.player_a_id, pair.player_b_id].filter(
@@ -123,11 +97,32 @@ export default function FixturesPairs({
         field: 'player_a_id' | 'player_b_id',
         value: string,
     ) => {
-        const updated = [...form.data.pairs];
-        updated[index] = {
-            ...updated[index],
-            [field]: value ? Number(value) : null,
-        };
+        const updated = form.data.pairs.map((pair) => ({ ...pair }));
+
+        if (value === '__none__') {
+            updated[index] = { ...updated[index], [field]: null };
+        } else {
+            const playerId = Number(value);
+
+            updated.forEach((pair, pairIndex) => {
+                if (
+                    pair.player_a_id === playerId &&
+                    !(pairIndex === index && field === 'player_a_id')
+                ) {
+                    pair.player_a_id = null;
+                }
+
+                if (
+                    pair.player_b_id === playerId &&
+                    !(pairIndex === index && field === 'player_b_id')
+                ) {
+                    pair.player_b_id = null;
+                }
+            });
+
+            updated[index] = { ...updated[index], [field]: playerId };
+        }
+
         form.setData('pairs', updated);
     };
 
@@ -142,12 +137,6 @@ export default function FixturesPairs({
 
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <Heading title={`Batting pairs vs ${fixture.opponent}`} />
-
-                {hasDuplicates && (
-                    <p className="text-sm text-red-600 dark:text-red-400">
-                        Each player can only appear once across all pairs.
-                    </p>
-                )}
 
                 <form onSubmit={submit} className="max-w-xl space-y-6">
                     <div className="space-y-4">
@@ -166,7 +155,10 @@ export default function FixturesPairs({
                                             Player A
                                         </Label>
                                         <Select
-                                            value={pair.player_a_id?.toString()}
+                                            value={
+                                                pair.player_a_id?.toString() ??
+                                                '__none__'
+                                            }
                                             onValueChange={(value) =>
                                                 updatePair(
                                                     index,
@@ -182,15 +174,13 @@ export default function FixturesPairs({
                                                 <SelectValue placeholder="Select player" />
                                             </SelectTrigger>
                                             <SelectContent>
+                                                <SelectItem value="__none__">
+                                                    — none —
+                                                </SelectItem>
                                                 {players.map((player) => (
                                                     <SelectItem
                                                         key={player.id}
                                                         value={player.id.toString()}
-                                                        disabled={getSelectedIds(
-                                                            form.data.pairs,
-                                                            index,
-                                                            'player_a_id',
-                                                        ).includes(player.id)}
                                                     >
                                                         {formatPlayerLabel(
                                                             player,
@@ -206,7 +196,10 @@ export default function FixturesPairs({
                                             Player B
                                         </Label>
                                         <Select
-                                            value={pair.player_b_id?.toString()}
+                                            value={
+                                                pair.player_b_id?.toString() ??
+                                                '__none__'
+                                            }
                                             onValueChange={(value) =>
                                                 updatePair(
                                                     index,
@@ -222,15 +215,13 @@ export default function FixturesPairs({
                                                 <SelectValue placeholder="Select player" />
                                             </SelectTrigger>
                                             <SelectContent>
+                                                <SelectItem value="__none__">
+                                                    — none —
+                                                </SelectItem>
                                                 {players.map((player) => (
                                                     <SelectItem
                                                         key={player.id}
                                                         value={player.id.toString()}
-                                                        disabled={getSelectedIds(
-                                                            form.data.pairs,
-                                                            index,
-                                                            'player_b_id',
-                                                        ).includes(player.id)}
                                                     >
                                                         {formatPlayerLabel(
                                                             player,
