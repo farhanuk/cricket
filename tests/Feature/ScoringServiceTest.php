@@ -187,6 +187,55 @@ test('record throws only when the innings has been explicitly completed', functi
     scoringService()->record($innings, ['runs' => 1]);
 })->throws(RuntimeException::class, 'Innings is already complete.');
 
+test('player run totals follow striker_id after mid-innings pair edits', function () {
+    ['fixture' => $fixture, 'innings' => $innings, 'players' => $players] = createUsInningsSetup();
+
+    $playerA = $players[0];
+    $playerB = $players[1];
+
+    scoringService()->record($innings, ['striker_id' => $playerA->id, 'runs' => 4]);
+    scoringService()->record($innings, ['striker_id' => $playerA->id, 'runs' => 6]);
+    scoringService()->record($innings, ['striker_id' => $playerA->id, 'runs' => 2]);
+    scoringService()->record($innings, ['striker_id' => $playerB->id, 'runs' => 3]);
+    scoringService()->record($innings, ['striker_id' => $playerB->id, 'runs' => 1]);
+
+    $playerATotalBefore = (int) $innings->deliveries()
+        ->where('striker_id', $playerA->id)
+        ->sum('runs');
+    $playerBTotalBefore = (int) $innings->deliveries()
+        ->where('striker_id', $playerB->id)
+        ->sum('runs');
+    $totalsBefore = scoringService()->playerRunTotals($innings);
+
+    expect($playerATotalBefore)->toBe(12)
+        ->and($playerBTotalBefore)->toBe(4)
+        ->and($totalsBefore[$playerA->id]['runs'])->toBe(12)
+        ->and($totalsBefore[$playerA->id]['balls_faced'])->toBe(3)
+        ->and($totalsBefore[$playerB->id]['runs'])->toBe(4)
+        ->and($totalsBefore[$playerB->id]['balls_faced'])->toBe(2);
+
+    $pairOne = $fixture->pairs()->where('position', 1)->first();
+    $pairThree = $fixture->pairs()->where('position', 3)->first();
+
+    $pairOne->update(['player_a_id' => $pairThree->player_a_id]);
+    $pairThree->update(['player_a_id' => $playerA->id]);
+
+    $playerATotalAfter = (int) $innings->deliveries()
+        ->where('striker_id', $playerA->id)
+        ->sum('runs');
+    $playerBTotalAfter = (int) $innings->deliveries()
+        ->where('striker_id', $playerB->id)
+        ->sum('runs');
+    $totalsAfter = scoringService()->playerRunTotals($innings);
+
+    expect($playerATotalAfter)->toBe(12)
+        ->and($playerBTotalAfter)->toBe(4)
+        ->and($totalsAfter[$playerA->id]['runs'])->toBe(12)
+        ->and($totalsAfter[$playerA->id]['balls_faced'])->toBe(3)
+        ->and($totalsAfter[$playerB->id]['runs'])->toBe(4)
+        ->and($totalsAfter[$playerB->id]['balls_faced'])->toBe(2);
+});
+
 test('undoLast removes exactly the last delivery', function () {
     ['innings' => $innings] = createUsInningsSetup();
 

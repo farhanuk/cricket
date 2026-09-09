@@ -128,6 +128,34 @@ class ScoringService
         ];
     }
 
+    /**
+     * @return array<int, array{runs: int, balls_faced: int}>
+     */
+    public function playerRunTotals(Innings $innings): array
+    {
+        $totals = [];
+
+        $deliveries = $innings->deliveries()
+            ->whereNotNull('striker_id')
+            ->get(['striker_id', 'runs', 'counts_toward_over']);
+
+        foreach ($deliveries as $delivery) {
+            $strikerId = $delivery->striker_id;
+
+            if (! isset($totals[$strikerId])) {
+                $totals[$strikerId] = ['runs' => 0, 'balls_faced' => 0];
+            }
+
+            $totals[$strikerId]['runs'] += $delivery->runs;
+
+            if ($delivery->counts_toward_over) {
+                $totals[$strikerId]['balls_faced']++;
+            }
+        }
+
+        return $totals;
+    }
+
     protected function countingDeliveries(Innings $innings): int
     {
         return $innings->deliveries()
