@@ -3,20 +3,26 @@
 namespace App\Http\Controllers;
 
 use App\Models\Fixture;
+use App\Models\Player;
 use App\Services\ScoringService;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 use RuntimeException;
 
 class MatchController extends Controller
 {
     /**
-     * Show a JSON-ready match summary for a fixture.
+     * Show the match hub for a fixture.
      */
-    public function show(Fixture $fixture, ScoringService $scoringService): JsonResponse
+    public function show(Fixture $fixture, ScoringService $scoringService): Response
     {
         $fixture->load(['season.team', 'innings' => fn ($query) => $query->orderBy('sequence')]);
 
-        $inningsSummaries = $fixture->innings->map(function ($innings) use ($scoringService) {
+        $team = $fixture->season->team;
+
+        $inningsSummaries = $fixture->innings->map(function ($innings) use ($fixture, $team, $scoringService) {
             $state = $scoringService->state($innings);
 
             return [
@@ -24,10 +30,11 @@ class MatchController extends Controller
                 'sequence' => $innings->sequence,
                 'batting_team_id' => $innings->batting_team_id,
                 'is_ours' => $innings->isOurs(),
-                'completed_at' => $innings->completed_at,
+                'batting_side_name' => $innings->isOurs() ? $team->name : $fixture->opponent,
                 'total_runs' => $state['total_runs'],
                 'wickets' => $state['wickets'],
                 'is_complete' => $state['is_complete'],
+                'has_deliveries' => $innings->deliveries()->exists(),
             ];
         });
 
@@ -39,11 +46,33 @@ class MatchController extends Controller
             // Result not ready yet.
         }
 
-        return response()->json([
-            'fixture' => $fixture->only(['id', 'opponent', 'overs', 'balls_per_over', 'first_innings_team_id']),
-            'team' => $fixture->season->team->only(['id', 'name']),
+        return Inertia::render('match/index', [
+            'fixture' => $fixture->only([
+                'id',
+                'opponent',
+                'overs',
+                'balls_per_over',
+                'first_innings_team_id',
+                'track_bowling_wickets',
+            ]),
+            'team' => $team->only(['id', 'name']),
             'innings' => $inningsSummaries,
             'result' => $result,
+            'match_started' => $fixture->innings()->exists(),
         ]);
+    }
+
+    /**
+     * Update match settings for a fixture.
+     */
+    public function updateSettings(Request $request, Fixture $fixture): RedirectResponse
+    {
+        $validated = $request->validate([
+            'track_bowling_wickets' => ['required', 'boolean'],
+        ]);
+
+        $fixture->update($validated);
+
+        return redirect("/fixtures/{$fixture->id}/match");
     }
 }

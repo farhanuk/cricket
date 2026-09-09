@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Fixture;
 use App\Models\Innings;
+use App\Models\Player;
 use App\Services\ScoringService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -68,8 +69,9 @@ class ScoringController extends Controller
      */
     public function show(Innings $innings): Response
     {
-        $innings->load('fixture');
+        $innings->load(['fixture.season.team', 'fixture.selections.player']);
 
+        $fixture = $innings->fixture;
         $state = app(ScoringService::class)->state($innings);
 
         $recent = $innings->deliveries()
@@ -84,7 +86,14 @@ class ScoringController extends Controller
                 'is_out' => $delivery->is_out,
                 'extra_type' => $delivery->extra_type,
                 'striker_id' => $delivery->striker_id,
+                'bowler_id' => $delivery->bowler_id,
             ]);
+
+        $players = $fixture->selections
+            ->map(fn ($selection) => $selection->player)
+            ->sortBy('squad_number')
+            ->values()
+            ->map(fn (Player $player) => $player->only(['id', 'name', 'squad_number']));
 
         return Inertia::render('scoring/index', [
             'innings' => [
@@ -93,7 +102,16 @@ class ScoringController extends Controller
                 'batting_side' => $innings->isOurs() ? 'us' : 'them',
                 'sequence' => $innings->sequence,
             ],
-            'fixture' => $innings->fixture->only('id', 'opponent', 'overs', 'balls_per_over'),
+            'fixture' => $fixture->only([
+                'id',
+                'opponent',
+                'overs',
+                'balls_per_over',
+                'track_bowling_wickets',
+            ]),
+            'team' => $fixture->season->team->only(['id', 'name']),
+            'isOurs' => $innings->isOurs(),
+            'players' => $players,
             'state' => $state,
             'recent' => $recent,
         ]);

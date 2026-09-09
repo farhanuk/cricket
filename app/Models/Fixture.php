@@ -21,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property int $balls_per_over
  * @property string $status
  * @property int|null $first_innings_team_id
+ * @property bool $track_bowling_wickets
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Season $season
@@ -28,7 +29,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Pair> $pairs
  * @property-read Collection<int, Innings> $innings
  */
-#[Fillable(['season_id', 'opponent', 'played_at', 'venue', 'overs', 'balls_per_over', 'status', 'first_innings_team_id'])]
+#[Fillable(['season_id', 'opponent', 'played_at', 'venue', 'overs', 'balls_per_over', 'status', 'first_innings_team_id', 'track_bowling_wickets'])]
 class Fixture extends Model
 {
     /** @use HasFactory<FixtureFactory> */
@@ -81,6 +82,7 @@ class Fixture extends Model
     {
         return [
             'played_at' => 'datetime',
+            'track_bowling_wickets' => 'bool',
         ];
     }
 }

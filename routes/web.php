@@ -19,6 +19,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('fixtures/{fixture}/pairs', [FixtureController::class, 'pairs'])->name('fixtures.pairs');
     Route::post('fixtures/{fixture}/pairs', [FixtureController::class, 'storePairs'])->name('fixtures.pairs.store');
     Route::get('fixtures/{fixture}/match', [MatchController::class, 'show'])->name('fixtures.match');
+    Route::post('fixtures/{fixture}/match/settings', [MatchController::class, 'updateSettings'])->name('fixtures.match.settings');
     Route::post('fixtures/{fixture}/score', [ScoringController::class, 'start'])->name('scoring.start');
     Route::get('innings/{innings}/score', [ScoringController::class, 'show'])->name('scoring.show');
     Route::post('innings/{innings}/deliveries', [ScoringController::class, 'record'])->name('scoring.record');

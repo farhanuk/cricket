@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,6 +11,14 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 const PAIR_CHECKPOINT_OVERS = [4, 7, 10] as const;
@@ -46,6 +54,7 @@ type RecentDelivery = {
     is_out: boolean;
     extra_type: 'wide' | 'no_ball' | null;
     striker_id: number | null;
+    bowler_id: number | null;
 };
 
 type PageProps = {
@@ -59,7 +68,14 @@ type PageProps = {
         opponent: string;
         overs: number;
         balls_per_over: number;
+        track_bowling_wickets: boolean;
     };
+    team: {
+        id: number;
+        name: string;
+    };
+    isOurs: boolean;
+    players: Player[];
     state: ScoringState;
     recent: RecentDelivery[];
 };
@@ -80,14 +96,32 @@ function initialStrikerId(
     return currentPair?.players[0]?.id ?? null;
 }
 
+function bowlerForOver(
+    recent: RecentDelivery[],
+    overNo: number,
+): number | null {
+    const deliveryInOver = recent.find(
+        (delivery) =>
+            delivery.over_no === overNo && delivery.bowler_id !== null,
+    );
+
+    return deliveryInOver?.bowler_id ?? null;
+}
+
 export default function ScoringIndex({
     innings,
     fixture,
+    team,
+    isOurs,
+    players,
     state,
     recent,
 }: PageProps) {
     const [strikerId, setStrikerId] = useState<number | null>(() =>
-        initialStrikerId(recent, state.current_pair),
+        isOurs ? initialStrikerId(recent, state.current_pair) : null,
+    );
+    const [bowlerId, setBowlerId] = useState<number | null>(() =>
+        isOurs ? null : bowlerForOver(recent, state.over_no),
     );
     const [activeExtra, setActiveExtra] = useState<ExtraType | null>(null);
     const [showOutOptions, setShowOutOptions] = useState(false);
@@ -96,8 +130,16 @@ export default function ScoringIndex({
     const [acknowledgedCheckpointOvers, setAcknowledgedCheckpointOvers] =
         useState<number[]>([]);
 
+    useEffect(() => {
+        if (isOurs) {
+            setStrikerId(initialStrikerId(recent, state.current_pair));
+        } else {
+            setBowlerId(bowlerForOver(recent, state.over_no));
+        }
+    }, [state.over_no, state.current_pair, recent, isOurs]);
+
     const pairCheckpointActive =
-        innings.batting_side === 'us' &&
+        isOurs &&
         PAIR_CHECKPOINT_OVERS.includes(
             state.over_no as (typeof PAIR_CHECKPOINT_OVERS)[number],
         ) &&
@@ -117,39 +159,57 @@ export default function ScoringIndex({
         state.current_pair?.players.map((player) => player.id) ?? [];
     const strikerSelected =
         strikerId !== null && pairPlayerIds.includes(strikerId);
+    const bowlerSelected = bowlerId !== null;
     const inputsLocked =
         state.is_complete || state.balls_remaining === 0;
-    const scoringEnabled =
-        !inputsLocked && strikerSelected && !submitting;
+    const scorerReady = isOurs ? strikerSelected : bowlerSelected;
+    const scoringEnabled = !inputsLocked && scorerReady && !submitting;
+    const showOutControls =
+        isOurs || fixture.track_bowling_wickets;
+    const battingSideName = isOurs ? team.name : fixture.opponent;
+    const currentBowler = players.find((player) => player.id === bowlerId);
 
     const recordDelivery = (payload: {
         runs: number;
         is_out: boolean;
         extra_type?: ExtraType | null;
     }) => {
-        if (!scoringEnabled || strikerId === null) {
+        if (!scoringEnabled) {
+            return;
+        }
+
+        if (isOurs && strikerId === null) {
+            return;
+        }
+
+        if (!isOurs && bowlerId === null) {
             return;
         }
 
         setSubmitting(true);
 
-        router.post(
-            `/innings/${innings.id}/deliveries`,
-            {
-                striker_id: strikerId,
-                runs: payload.runs,
-                is_out: payload.is_out,
-                extra_type: payload.extra_type ?? null,
+        const body = isOurs
+            ? {
+                  striker_id: strikerId,
+                  runs: payload.runs,
+                  is_out: payload.is_out,
+                  extra_type: payload.extra_type ?? null,
+              }
+            : {
+                  bowler_id: bowlerId,
+                  runs: payload.runs,
+                  is_out: payload.is_out,
+                  extra_type: payload.extra_type ?? null,
+              };
+
+        router.post(`/innings/${innings.id}/deliveries`, body, {
+            preserveScroll: true,
+            onFinish: () => {
+                setSubmitting(false);
+                setActiveExtra(null);
+                setShowOutOptions(false);
             },
-            {
-                preserveScroll: true,
-                onFinish: () => {
-                    setSubmitting(false);
-                    setActiveExtra(null);
-                    setShowOutOptions(false);
-                },
-            },
-        );
+        });
     };
 
     const recordRun = (runs: number) => {
@@ -292,8 +352,14 @@ export default function ScoringIndex({
                                 {state.balls_per_over}
                             </p>
                             <p className="mt-2 text-sm font-medium">
-                                vs {fixture.opponent}
+                                {battingSideName} batting · vs{' '}
+                                {isOurs ? fixture.opponent : team.name}
                             </p>
+                            {!isOurs && currentBowler && (
+                                <p className="text-muted-foreground mt-1 text-sm">
+                                    Bowler: {currentBowler.name}
+                                </p>
+                            )}
                         </div>
                         {state.is_last_over && !state.is_complete && (
                             <Badge className="border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300">
@@ -302,7 +368,7 @@ export default function ScoringIndex({
                         )}
                     </div>
 
-                    {state.current_pair && (
+                    {isOurs && state.current_pair && (
                         <p className="text-muted-foreground mt-3 text-sm">
                             Pair {state.current_pair.position}:{' '}
                             {state.current_pair.players
@@ -332,7 +398,7 @@ export default function ScoringIndex({
                 )}
 
                 <div className="flex flex-col gap-4 px-4 pt-4">
-                    {state.current_pair && (
+                    {isOurs && state.current_pair && (
                         <div className="grid grid-cols-2 gap-3">
                             {state.current_pair.players.map((player) => (
                                 <button
@@ -360,9 +426,49 @@ export default function ScoringIndex({
                         </div>
                     )}
 
-                    {!strikerSelected && !inputsLocked && (
+                    {!isOurs && (
+                        <div className="space-y-2">
+                            <Label htmlFor="bowler">Bowler this over</Label>
+                            <Select
+                                value={
+                                    bowlerId !== null
+                                        ? String(bowlerId)
+                                        : undefined
+                                }
+                                onValueChange={(value) =>
+                                    setBowlerId(Number(value))
+                                }
+                                disabled={
+                                    inputsLocked ||
+                                    state.balls_bowled_this_over > 0
+                                }
+                            >
+                                <SelectTrigger
+                                    id="bowler"
+                                    className="min-h-12 w-full"
+                                >
+                                    <SelectValue placeholder="Select bowler" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {players.map((player) => (
+                                        <SelectItem
+                                            key={player.id}
+                                            value={String(player.id)}
+                                        >
+                                            {player.squad_number ?? '—'} —{' '}
+                                            {player.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    {!scorerReady && !inputsLocked && (
                         <p className="text-muted-foreground text-center text-sm">
-                            Select a striker to record runs
+                            {isOurs
+                                ? 'Select a striker to record runs'
+                                : 'Select a bowler for this over'}
                         </p>
                     )}
 
@@ -432,33 +538,37 @@ export default function ScoringIndex({
                         </Button>
                     </div>
 
-                    <div className="space-y-3">
-                        <Button
-                            type="button"
-                            variant="destructive"
-                            disabled={!scoringEnabled}
-                            className="min-h-14 w-full text-lg"
-                            onClick={() => setShowOutOptions((open) => !open)}
-                        >
-                            OUT
-                        </Button>
+                    {showOutControls && (
+                        <div className="space-y-3">
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                disabled={!scoringEnabled}
+                                className="min-h-14 w-full text-lg"
+                                onClick={() =>
+                                    setShowOutOptions((open) => !open)
+                                }
+                            >
+                                OUT
+                            </Button>
 
-                        {showOutOptions && (
-                            <div className="grid grid-cols-5 gap-2">
-                                {[-1, -2, -3, -4, -5].map((runs) => (
-                                    <button
-                                        key={runs}
-                                        type="button"
-                                        disabled={!scoringEnabled}
-                                        onClick={() => recordOut(runs)}
-                                        className="bg-destructive hover:bg-destructive/90 min-h-14 rounded-xl text-lg font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        {runs}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                            {showOutOptions && (
+                                <div className="grid grid-cols-5 gap-2">
+                                    {[-1, -2, -3, -4, -5].map((runs) => (
+                                        <button
+                                            key={runs}
+                                            type="button"
+                                            disabled={!scoringEnabled}
+                                            onClick={() => recordOut(runs)}
+                                            className="bg-destructive hover:bg-destructive/90 min-h-14 rounded-xl text-lg font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            {runs}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {state.balls_remaining === 0 && !state.is_complete && (
                         <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-4 text-center">

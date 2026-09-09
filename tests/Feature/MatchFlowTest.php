@@ -178,6 +178,60 @@ test('result returns opposition_win with correct margin', function () {
     ]);
 });
 
+test('record requires striker_id for our innings', function () {
+    ['fixture' => $fixture, 'players' => $players, 'team' => $team] = createMatchFixtureSetup();
+    $user = User::factory()->create();
+
+    createBothInnings($fixture, $team, 'us');
+
+    $ourInnings = $fixture->innings()->where('sequence', 1)->firstOrFail();
+
+    $this->actingAs($user)
+        ->post("/innings/{$ourInnings->id}/deliveries", [
+            'runs' => 4,
+        ])
+        ->assertSessionHasErrors('striker_id');
+});
+
+test('record requires bowler_id for opposition innings', function () {
+    ['fixture' => $fixture, 'team' => $team] = createMatchFixtureSetup();
+    $user = User::factory()->create();
+
+    createBothInnings($fixture, $team, 'them');
+
+    $oppInnings = $fixture->innings()->where('sequence', 1)->firstOrFail();
+
+    $this->actingAs($user)
+        ->post("/innings/{$oppInnings->id}/deliveries", [
+            'runs' => 4,
+        ])
+        ->assertSessionHasErrors('bowler_id');
+});
+
+test('record accepts striker_id for our innings and bowler_id for opposition innings', function () {
+    ['fixture' => $fixture, 'players' => $players, 'team' => $team] = createMatchFixtureSetup();
+    $user = User::factory()->create();
+
+    createBothInnings($fixture, $team, 'us');
+
+    $ourInnings = $fixture->innings()->where('sequence', 1)->firstOrFail();
+    $oppInnings = $fixture->innings()->where('sequence', 2)->firstOrFail();
+
+    $this->actingAs($user)
+        ->post("/innings/{$ourInnings->id}/deliveries", [
+            'striker_id' => $players[0]->id,
+            'runs' => 4,
+        ])
+        ->assertRedirect("/innings/{$ourInnings->id}/score");
+
+    $this->actingAs($user)
+        ->post("/innings/{$oppInnings->id}/deliveries", [
+            'bowler_id' => $players[1]->id,
+            'runs' => 2,
+        ])
+        ->assertRedirect("/innings/{$oppInnings->id}/score");
+});
+
 test('result returns tie when totals are equal', function () {
     ['fixture' => $fixture, 'team' => $team] = createMatchFixtureSetup();
 
