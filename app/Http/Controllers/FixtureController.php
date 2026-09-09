@@ -8,6 +8,7 @@ use App\Models\Player;
 use App\Models\Season;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -80,6 +81,74 @@ class FixtureController extends Controller
         );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Selection saved.')]);
+
+        return redirect()->route('fixtures.index');
+    }
+
+    /**
+     * Show the batting pairs screen for a fixture.
+     */
+    public function pairs(Fixture $fixture): Response
+    {
+        $selectedPlayerIds = $fixture->selections()->pluck('player_id');
+
+        return Inertia::render('fixtures/pairs', [
+            'fixture' => $fixture->only('id', 'opponent'),
+            'players' => Player::query()
+                ->whereIn('id', $selectedPlayerIds)
+                ->orderBy('squad_number')
+                ->get(['id', 'name', 'squad_number']),
+            'pairs' => $fixture->pairs()
+                ->orderBy('position')
+                ->get(['id', 'position', 'player_a_id', 'player_b_id']),
+        ]);
+    }
+
+    /**
+     * Store the batting pairs for a fixture.
+     */
+    public function storePairs(Request $request, Fixture $fixture): RedirectResponse
+    {
+        $validated = $request->validate([
+            'pairs' => ['required', 'array', 'size:4'],
+            'pairs.*.position' => ['required', 'integer', 'min:1', 'max:4'],
+            'pairs.*.player_a_id' => ['required', 'exists:players,id'],
+            'pairs.*.player_b_id' => ['required', 'exists:players,id'],
+        ]);
+
+        $allowedPlayerIds = $fixture->selections()->pluck('player_id')->all();
+
+        $playerIds = collect($validated['pairs'])
+            ->flatMap(fn (array $pair) => [$pair['player_a_id'], $pair['player_b_id']])
+            ->all();
+
+        if (count($playerIds) !== count(array_unique($playerIds))) {
+            throw ValidationException::withMessages([
+                'pairs' => __('Each player can only appear once across all pairs.'),
+            ]);
+        }
+
+        foreach ($playerIds as $playerId) {
+            if (! in_array($playerId, $allowedPlayerIds)) {
+                throw ValidationException::withMessages([
+                    'pairs' => __('All players must be from this fixture\'s selection.'),
+                ]);
+            }
+        }
+
+        $fixture->pairs()->delete();
+
+        $fixture->pairs()->createMany(
+            collect($validated['pairs'])
+                ->map(fn (array $pair) => [
+                    'position' => $pair['position'],
+                    'player_a_id' => $pair['player_a_id'],
+                    'player_b_id' => $pair['player_b_id'],
+                ])
+                ->all()
+        );
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Pairs saved.')]);
 
         return redirect()->route('fixtures.index');
     }

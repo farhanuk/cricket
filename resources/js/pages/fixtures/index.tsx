@@ -110,17 +110,30 @@ export default function FixturesIndex({ fixtures }: PageProps) {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                asChild
-                                            >
-                                                <Link
-                                                    href={`/fixtures/${fixture.id}/selection`}
+                                            <div className="flex justify-end gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
                                                 >
-                                                    Select squad
-                                                </Link>
-                                            </Button>
+                                                    <Link
+                                                        href={`/fixtures/${fixture.id}/selection`}
+                                                    >
+                                                        Select squad
+                                                    </Link>
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
+                                                >
+                                                    <Link
+                                                        href={`/fixtures/${fixture.id}/pairs`}
+                                                    >
+                                                        Pairs
+                                                    </Link>
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
