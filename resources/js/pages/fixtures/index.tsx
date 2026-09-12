@@ -105,8 +105,8 @@ export default function FixturesIndex({ fixtures }: PageProps) {
                     <div className="border-sidebar-border/70 dark:border-sidebar-border flex flex-col items-center justify-center gap-2 rounded-xl border px-6 py-16 text-center">
                         <p className="text-lg font-medium">No fixtures yet</p>
                         <p className="text-muted-foreground max-w-sm text-sm">
-                            Create your first fixture to start scheduling matches
-                            for the season.
+                            Create your first fixture to start scheduling
+                            matches for the season.
                         </p>
                         <Button asChild className="mt-2">
                             <Link href={create()}>New fixture</Link>
@@ -136,9 +136,7 @@ export default function FixturesIndex({ fixtures }: PageProps) {
                                         >
                                             <TableCell>
                                                 <FixtureDate
-                                                    playedAt={
-                                                        fixture.played_at
-                                                    }
+                                                    playedAt={fixture.played_at}
                                                 />
                                             </TableCell>
                                             <TableCell className="font-medium">
@@ -146,9 +144,7 @@ export default function FixturesIndex({ fixtures }: PageProps) {
                                             </TableCell>
                                             <TableCell>
                                                 <FixtureStatusBadge
-                                                    playedAt={
-                                                        fixture.played_at
-                                                    }
+                                                    playedAt={fixture.played_at}
                                                 />
                                             </TableCell>
                                         </TableRow>

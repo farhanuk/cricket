@@ -90,8 +90,7 @@ export default function MatchIndex({
     };
 
     const bothComplete =
-        innings.length === 2 &&
-        innings.every((entry) => entry.is_complete);
+        innings.length === 2 && innings.every((entry) => entry.is_complete);
 
     return (
         <>

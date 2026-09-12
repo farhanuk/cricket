@@ -1,18 +1,18 @@
-import { Head, useForm } from "@inertiajs/react";
-import type { FormEvent } from "react";
-import Heading from "@/components/heading";
-import InputError from "@/components/input-error";
-import TextLink from "@/components/text-link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
+import { Head, useForm } from '@inertiajs/react';
+import type { FormEvent } from 'react';
+import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
+import TextLink from '@/components/text-link';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 
 export default function FixturesCreate() {
     const form = useForm({
-        opponent: "",
-        played_at: "",
-        venue: "",
+        opponent: '',
+        played_at: '',
+        venue: '',
         overs: 12,
         balls_per_over: 6,
     });
@@ -26,7 +26,7 @@ export default function FixturesCreate() {
             venue: data.venue || null,
         }));
 
-        form.post("/fixtures");
+        form.post('/fixtures');
     };
 
     return (
@@ -43,7 +43,7 @@ export default function FixturesCreate() {
                             id="opponent"
                             value={form.data.opponent}
                             onChange={(event) =>
-                                form.setData("opponent", event.target.value)
+                                form.setData('opponent', event.target.value)
                             }
                             required
                             placeholder="Opponent team name"
@@ -58,7 +58,7 @@ export default function FixturesCreate() {
                             type="date"
                             value={form.data.played_at}
                             onChange={(event) =>
-                                form.setData("played_at", event.target.value)
+                                form.setData('played_at', event.target.value)
                             }
                         />
                         <InputError message={form.errors.played_at} />
@@ -70,7 +70,7 @@ export default function FixturesCreate() {
                             id="venue"
                             value={form.data.venue}
                             onChange={(event) =>
-                                form.setData("venue", event.target.value)
+                                form.setData('venue', event.target.value)
                             }
                             placeholder="Venue name"
                         />
@@ -87,7 +87,7 @@ export default function FixturesCreate() {
                             value={form.data.overs}
                             onChange={(event) =>
                                 form.setData(
-                                    "overs",
+                                    'overs',
                                     Number(event.target.value),
                                 )
                             }
@@ -106,7 +106,7 @@ export default function FixturesCreate() {
                             value={form.data.balls_per_over}
                             onChange={(event) =>
                                 form.setData(
-                                    "balls_per_over",
+                                    'balls_per_over',
                                     Number(event.target.value),
                                 )
                             }
@@ -131,12 +131,12 @@ export default function FixturesCreate() {
 FixturesCreate.layout = {
     breadcrumbs: [
         {
-            title: "Fixtures",
-            href: "/fixtures",
+            title: 'Fixtures',
+            href: '/fixtures',
         },
         {
-            title: "New fixture",
-            href: "/fixtures/create",
+            title: 'New fixture',
+            href: '/fixtures/create',
         },
     ],
 };

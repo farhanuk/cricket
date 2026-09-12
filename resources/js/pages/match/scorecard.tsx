@@ -2,12 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import MatchHomeButton from '@/components/match-home-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Table,
     TableBody,
@@ -105,9 +100,7 @@ function resultHeadline(
 
 function BattingTable({ rows }: { rows: BattingRow[] }) {
     if (rows.length === 0) {
-        return (
-            <p className="text-muted-foreground text-sm">No batters yet</p>
-        );
+        return <p className="text-muted-foreground text-sm">No batters yet</p>;
     }
 
     return (
@@ -158,9 +151,7 @@ function BattingTable({ rows }: { rows: BattingRow[] }) {
 
 function BowlingTable({ rows }: { rows: BowlingRow[] }) {
     if (rows.length === 0) {
-        return (
-            <p className="text-muted-foreground text-sm">No bowlers yet</p>
-        );
+        return <p className="text-muted-foreground text-sm">No bowlers yet</p>;
     }
 
     return (

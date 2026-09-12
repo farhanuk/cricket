@@ -129,8 +129,7 @@ function initialStrikerId(
     lastStrikerId: number | null,
     currentPair: CurrentPair | null,
 ): number | null {
-    const pairIds =
-        currentPair?.players.map((player) => player.id) ?? [];
+    const pairIds = currentPair?.players.map((player) => player.id) ?? [];
 
     if (lastStrikerId !== null && pairIds.includes(lastStrikerId)) {
         return lastStrikerId;
@@ -186,9 +185,7 @@ export default function ScoringIndex(props: PageProps) {
     const lastStrikerId = props.isOurs ? props.lastStrikerId : null;
     const battingFigures = props.isOurs ? props.battingFigures : [];
     const upcomingPairs = props.isOurs ? props.upcomingPairs : [];
-    const currentOverBowlerId = props.isOurs
-        ? null
-        : props.currentOverBowlerId;
+    const currentOverBowlerId = props.isOurs ? null : props.currentOverBowlerId;
     const previousOverBowlerId = props.isOurs
         ? null
         : props.previousOverBowlerId;
@@ -209,9 +206,7 @@ export default function ScoringIndex(props: PageProps) {
 
     useEffect(() => {
         if (isOurs) {
-            setStrikerId(
-                initialStrikerId(lastStrikerId, state.current_pair),
-            );
+            setStrikerId(initialStrikerId(lastStrikerId, state.current_pair));
         } else {
             setBowlerId(currentOverBowlerId);
         }
@@ -245,8 +240,7 @@ export default function ScoringIndex(props: PageProps) {
     const strikerSelected =
         strikerId !== null && pairPlayerIds.includes(strikerId);
     const bowlerSelected = bowlerId !== null;
-    const inputsLocked =
-        state.is_complete || state.balls_remaining === 0;
+    const inputsLocked = state.is_complete || state.balls_remaining === 0;
     const scorerReady = isOurs ? strikerSelected : bowlerSelected;
     const scoringEnabled = !inputsLocked && scorerReady && !submitting;
     const battingSideName = isOurs ? team.name : fixture.opponent;
@@ -254,9 +248,7 @@ export default function ScoringIndex(props: PageProps) {
 
     const eligibleBowlers =
         !isOurs && state.balls_bowled_this_over === 0
-            ? players.filter(
-                  (player) => player.id !== previousOverBowlerId,
-              )
+            ? players.filter((player) => player.id !== previousOverBowlerId)
             : players;
 
     const recordDelivery = (payload: {
@@ -411,9 +403,7 @@ export default function ScoringIndex(props: PageProps) {
                             variant="outline"
                             className="min-h-12 flex-1"
                             onClick={() =>
-                                router.visit(
-                                    `/fixtures/${fixture.id}/pairs`,
-                                )
+                                router.visit(`/fixtures/${fixture.id}/pairs`)
                             }
                         >
                             Manage pairs

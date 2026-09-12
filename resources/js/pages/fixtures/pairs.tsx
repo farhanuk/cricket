@@ -77,11 +77,7 @@ function getAllSelectedIds(pairs: PairSlot[]): number[] {
     );
 }
 
-export default function FixturesPairs({
-    fixture,
-    players,
-    pairs,
-}: PageProps) {
+export default function FixturesPairs({ fixture, players, pairs }: PageProps) {
     const form = useForm<{ pairs: PairSlot[] }>({
         pairs: buildInitialPairs(pairs),
     });
@@ -154,7 +150,9 @@ export default function FixturesPairs({
 
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <div className="grid gap-2">
-                                        <Label htmlFor={`pair-${pair.position}-a`}>
+                                        <Label
+                                            htmlFor={`pair-${pair.position}-a`}
+                                        >
                                             Player A
                                         </Label>
                                         <Select
@@ -195,7 +193,9 @@ export default function FixturesPairs({
                                     </div>
 
                                     <div className="grid gap-2">
-                                        <Label htmlFor={`pair-${pair.position}-b`}>
+                                        <Label
+                                            htmlFor={`pair-${pair.position}-b`}
+                                        >
                                             Player B
                                         </Label>
                                         <Select
