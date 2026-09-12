@@ -469,5 +469,4 @@ class StatsService
             ? (string) $completedOvers
             : "{$completedOvers}.{$partialBalls}";
     }
-
 }
