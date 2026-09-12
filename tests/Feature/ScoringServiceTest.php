@@ -270,6 +270,59 @@ test('batting figures aggregate net runs, boundaries, balls, and dismissals', fu
         ->and($figures[0]['dismissals'])->toBe(1);
 });
 
+test('recording twice with the same client_uuid creates only one delivery', function () {
+    ['innings' => $innings, 'players' => $players] = createUsInningsSetup();
+    $clientUuid = '550e8400-e29b-41d4-a716-446655440000';
+
+    $first = scoringService()->record($innings, [
+        'striker_id' => $players[0]->id,
+        'runs' => 4,
+        'client_uuid' => $clientUuid,
+    ]);
+
+    $second = scoringService()->record($innings, [
+        'striker_id' => $players[0]->id,
+        'runs' => 4,
+        'client_uuid' => $clientUuid,
+    ]);
+
+    expect($innings->deliveries()->count())->toBe(1)
+        ->and($second->id)->toBe($first->id);
+});
+
+test('recording with different client_uuids creates separate deliveries', function () {
+    ['innings' => $innings, 'players' => $players] = createUsInningsSetup();
+
+    scoringService()->record($innings, [
+        'striker_id' => $players[0]->id,
+        'runs' => 1,
+        'client_uuid' => '550e8400-e29b-41d4-a716-446655440001',
+    ]);
+
+    scoringService()->record($innings, [
+        'striker_id' => $players[0]->id,
+        'runs' => 2,
+        'client_uuid' => '550e8400-e29b-41d4-a716-446655440002',
+    ]);
+
+    expect($innings->deliveries()->count())->toBe(2)
+        ->and(scoringService()->state($innings)['total_runs'])->toBe(3);
+});
+
+test('recording without client_uuid still works as before', function () {
+    ['innings' => $innings, 'players' => $players] = createUsInningsSetup();
+
+    $delivery = scoringService()->record($innings, [
+        'striker_id' => $players[0]->id,
+        'runs' => 6,
+    ]);
+
+    expect($innings->deliveries()->count())->toBe(1)
+        ->and($delivery->client_uuid)->toBeNull()
+        ->and($delivery->runs)->toBe(6)
+        ->and(scoringService()->state($innings)['total_runs'])->toBe(6);
+});
+
 test('undoLast removes exactly the last delivery', function () {
     ['innings' => $innings] = createUsInningsSetup();
 

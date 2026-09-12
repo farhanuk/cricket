@@ -128,6 +128,7 @@ class ScoringController extends Controller
                 'runs' => ['required', 'integer', 'min:-5', 'max:20'],
                 'is_out' => ['boolean'],
                 'extra_type' => ['nullable', 'in:wide,no_ball'],
+                'client_uuid' => ['nullable', 'string', 'uuid'],
             ]);
         } else {
             $validated = $request->validate([
@@ -135,6 +136,7 @@ class ScoringController extends Controller
                 'runs' => ['required', 'integer', 'min:-5', 'max:20'],
                 'is_out' => ['boolean'],
                 'extra_type' => ['nullable', 'in:wide,no_ball'],
+                'client_uuid' => ['nullable', 'string', 'uuid'],
             ]);
         }
 

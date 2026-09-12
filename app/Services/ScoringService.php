@@ -12,12 +12,24 @@ class ScoringService
     /**
      * Record a delivery for the given innings.
      *
-     * @param  array{striker_id?: int|null, bowler_id?: int|null, runs: int, is_out?: bool, extra_type?: null|'wide'|'no_ball'}  $input
+     * @param  array{striker_id?: int|null, bowler_id?: int|null, runs: int, is_out?: bool, extra_type?: null|'wide'|'no_ball', client_uuid?: string|null}  $input
      */
     public function record(Innings $innings, array $input): Delivery
     {
         if ($this->isComplete($innings)) {
             throw new RuntimeException('Innings is already complete.');
+        }
+
+        $clientUuid = $input['client_uuid'] ?? null;
+
+        if ($clientUuid !== null) {
+            $existing = $innings->deliveries()
+                ->where('client_uuid', $clientUuid)
+                ->first();
+
+            if ($existing !== null) {
+                return $existing;
+            }
         }
 
         $innings->loadMissing('fixture');
@@ -59,6 +71,7 @@ class ScoringService
             'is_out' => $input['is_out'] ?? false,
             'extra_type' => $extraType,
             'counts_toward_over' => $countsTowardOver,
+            'client_uuid' => $clientUuid,
         ]);
     }
 

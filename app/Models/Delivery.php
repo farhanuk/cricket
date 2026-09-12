@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property bool $is_out
  * @property string|null $extra_type
  * @property bool $counts_toward_over
+ * @property string|null $client_uuid
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Innings $innings
@@ -37,6 +38,7 @@ use Illuminate\Support\Carbon;
     'is_out',
     'extra_type',
     'counts_toward_over',
+    'client_uuid',
 ])]
 class Delivery extends Model
 {
