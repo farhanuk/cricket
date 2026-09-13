@@ -108,6 +108,23 @@ class ScoringController extends Controller
             $payload['lastStrikerId'] = $scoringService->currentOverStrikerId($innings);
             $payload['battingFigures'] = $statsService->battingCard($innings);
             $payload['upcomingPairs'] = $scoringService->upcomingPairs($fixture, $currentPairPosition);
+            $payload['pairs'] = $fixture->pairs()
+                ->with(['playerA', 'playerB'])
+                ->orderBy('position')
+                ->get()
+                ->map(fn ($pair) => [
+                    'position' => $pair->position,
+                    'players' => collect([$pair->playerA, $pair->playerB])
+                        ->filter()
+                        ->map(fn (Player $player) => [
+                            'id' => $player->id,
+                            'name' => $player->name,
+                            'squad_number' => $player->squad_number,
+                        ])
+                        ->values(),
+                ])
+                ->values()
+                ->all();
         } else {
             $payload['currentOverBowlerId'] = $scoringService->currentOverBowlerId($innings);
             $payload['previousOverBowlerId'] = $scoringService->previousOverBowlerId($innings);
