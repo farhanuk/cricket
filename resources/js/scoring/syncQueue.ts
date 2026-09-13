@@ -100,7 +100,10 @@ export function createSyncQueue(
 
     const pending = (): SyncAction[] => readQueue();
 
-    const applyRecordToLog = (payload: RecordPayload, clientUuid: string): void => {
+    const applyRecordToLog = (
+        payload: RecordPayload,
+        clientUuid: string,
+    ): void => {
         const log = readLog();
 
         if (log.some((delivery) => delivery.client_uuid === clientUuid)) {

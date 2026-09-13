@@ -75,10 +75,7 @@ function countsTowardOver(
 ): boolean {
     const overNo = overForDeliveryIndex(deliveries, fixture, index);
 
-    return !(
-        overNo === fixture.overs &&
-        deliveries[index].extra_type !== null
-    );
+    return !(overNo === fixture.overs && deliveries[index].extra_type !== null);
 }
 
 export function currentOverDeliveriesFromLog(
@@ -149,7 +146,8 @@ export function previousOverBowlerId(
     deliveries: Delivery[],
     fixture: FixtureConfig,
 ): number | null {
-    const targetOver = deriveState(deliveries, fixture, 'opposition').over_no - 1;
+    const targetOver =
+        deriveState(deliveries, fixture, 'opposition').over_no - 1;
 
     if (targetOver < 1) {
         return null;
@@ -188,7 +186,9 @@ export function battingFiguresFromLog(
     }
 
     const playersById = new Map(
-        pairs.flatMap((pair) => pair.players).map((player) => [player.id, player]),
+        pairs
+            .flatMap((pair) => pair.players)
+            .map((player) => [player.id, player]),
     );
 
     const byStriker = new Map<
@@ -362,10 +362,7 @@ export function bowlingFiguresFromLog(
 
             return {
                 name: stats.name,
-                overs: formatOvers(
-                    stats.countingBalls,
-                    fixture.balls_per_over,
-                ),
+                overs: formatOvers(stats.countingBalls, fixture.balls_per_over),
                 runs: stats.runs,
                 wickets: stats.wickets,
                 economy,

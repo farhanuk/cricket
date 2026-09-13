@@ -18,17 +18,11 @@ class MemoryStorage implements StorageAdapter {
     }
 }
 
-function action(
-    type: SyncAction['type'],
-    clientUuid: string,
-): SyncAction {
+function action(type: SyncAction['type'], clientUuid: string): SyncAction {
     return {
         type,
         client_uuid: clientUuid,
-        payload:
-            type === 'record'
-                ? { runs: 1, striker_id: 1 }
-                : undefined,
+        payload: type === 'record' ? { runs: 1, striker_id: 1 } : undefined,
     };
 }
 
@@ -60,7 +54,11 @@ describe('syncQueue', () => {
 
         const sender = vi.fn<Sender>(async (nextAction) => {
             if (nextAction.client_uuid === 'uuid-2') {
-                return { ok: false as const, reason: 'network', message: 'offline' };
+                return {
+                    ok: false as const,
+                    reason: 'network',
+                    message: 'offline',
+                };
             }
 
             return { ok: true as const };

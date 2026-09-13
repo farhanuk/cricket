@@ -67,9 +67,7 @@ describe('deriveState', () => {
     });
 
     it('counts a wide in over 1 toward the over', () => {
-        const deliveries = [
-            delivery(0, { runs: 1, extra_type: 'wide' }),
-        ];
+        const deliveries = [delivery(0, { runs: 1, extra_type: 'wide' })];
 
         expect(countingDeliveriesFromList(deliveries, fixture)).toBe(1);
 
@@ -107,9 +105,9 @@ describe('deriveState', () => {
 
         expect(overFourState.over_no).toBe(4);
         expect(overFourState.current_pair?.position).toBe(2);
-        expect(overFourState.current_pair?.players.map((player) => player.id)).toEqual([
-            3, 4,
-        ]);
+        expect(
+            overFourState.current_pair?.players.map((player) => player.id),
+        ).toEqual([3, 4]);
 
         const overSevenState = deriveState(
             normalDeliveries(37),
@@ -120,9 +118,9 @@ describe('deriveState', () => {
 
         expect(overSevenState.over_no).toBe(7);
         expect(overSevenState.current_pair?.position).toBe(3);
-        expect(overSevenState.current_pair?.players.map((player) => player.id)).toEqual([
-            5, 6,
-        ]);
+        expect(
+            overSevenState.current_pair?.players.map((player) => player.id),
+        ).toEqual([5, 6]);
     });
 
     it('reduces total runs when an out is recorded with negative runs', () => {

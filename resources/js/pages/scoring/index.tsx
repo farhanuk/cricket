@@ -135,14 +135,10 @@ function getCsrfToken(): string {
     return match ? decodeURIComponent(match.split('=')[1]) : '';
 }
 
-function toClientDelivery(
-    delivery: ServerDelivery,
-    index: number,
-): Delivery {
+function toClientDelivery(delivery: ServerDelivery, index: number): Delivery {
     return {
         client_uuid:
-            delivery.client_uuid ??
-            `server-${delivery.id ?? index}-${index}`,
+            delivery.client_uuid ?? `server-${delivery.id ?? index}-${index}`,
         striker_id: delivery.striker_id,
         bowler_id: delivery.bowler_id,
         runs: delivery.runs,
@@ -377,14 +373,8 @@ function SyncIndicator({
 export default function ScoringIndex(props: PageProps) {
     const { innings, fixture, team, isOurs, players } = props;
 
-    const sync = useMemo(
-        () => createSyncQueue(innings.id),
-        [innings.id],
-    );
-    const sender = useMemo(
-        () => createSender(innings.id),
-        [innings.id],
-    );
+    const sync = useMemo(() => createSyncQueue(innings.id), [innings.id]);
+    const sender = useMemo(() => createSender(innings.id), [innings.id]);
     const fixtureConfig = useMemo(
         () => ({
             overs: fixture.overs,
@@ -398,16 +388,14 @@ export default function ScoringIndex(props: PageProps) {
     );
     const [pairs, setPairs] = useState<Pair[]>(() => buildInitialPairs(props));
     const [isComplete, setIsComplete] = useState(props.state.is_complete);
-    const [pendingCount, setPendingCount] = useState(() =>
-        sync.pending().length,
+    const [pendingCount, setPendingCount] = useState(
+        () => sync.pending().length,
     );
     const [isOnline, setIsOnline] = useState(
         () => typeof navigator !== 'undefined' && navigator.onLine,
     );
     const [isFlushing, setIsFlushing] = useState(false);
-    const [failedAction, setFailedAction] = useState<FailedAction | null>(
-        null,
-    );
+    const [failedAction, setFailedAction] = useState<FailedAction | null>(null);
     const [showErrorReview, setShowErrorReview] = useState(false);
     const [showCompleteWarning, setShowCompleteWarning] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -439,10 +427,7 @@ export default function ScoringIndex(props: PageProps) {
         ? battingFiguresFromLog(deliveries, fixtureConfig, pairs)
         : [];
     const upcomingPairs = isOurs
-        ? upcomingPairsFromLog(
-              pairs,
-              state.current_pair?.position ?? 0,
-          )
+        ? upcomingPairsFromLog(pairs, state.current_pair?.position ?? 0)
         : [];
     const currentOverBowlerIdValue = !isOurs
         ? currentOverBowlerId(deliveries, fixtureConfig)
@@ -487,10 +472,7 @@ export default function ScoringIndex(props: PageProps) {
                     return current;
                 }
 
-                return initialStrikerId(
-                    lastStrikerId,
-                    derived.current_pair,
-                );
+                return initialStrikerId(lastStrikerId, derived.current_pair);
             });
         } else {
             setBowlerId(currentOverBowlerIdValue);
@@ -923,10 +905,7 @@ export default function ScoringIndex(props: PageProps) {
                 </DialogContent>
             </Dialog>
 
-            <Dialog
-                open={showErrorReview}
-                onOpenChange={setShowErrorReview}
-            >
+            <Dialog open={showErrorReview} onOpenChange={setShowErrorReview}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Sync error</DialogTitle>
