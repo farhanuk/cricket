@@ -462,6 +462,9 @@ export default function ScoringIndex(props: PageProps) {
     const [bowlerId, setBowlerId] = useState<number | null>(
         currentOverBowlerIdValue,
     );
+    const [bowlerChosenOverNo, setBowlerChosenOverNo] = useState<number | null>(
+        !isOurs && currentOverBowlerIdValue !== null ? state.over_no : null,
+    );
     const [activeExtra, setActiveExtra] = useState<ExtraType | null>(null);
     const [showOutOptions, setShowOutOptions] = useState(false);
     const [moreRuns, setMoreRuns] = useState('');
@@ -469,28 +472,53 @@ export default function ScoringIndex(props: PageProps) {
         useState<number[]>([]);
 
     useEffect(() => {
-        if (isOurs) {
-            if (currentBlockPlayers.length === 0) {
-                setStrikerId(null);
+        if (!isOurs) {
+            return;
+        }
 
-                return;
+        if (currentBlockPlayers.length === 0) {
+            setStrikerId(null);
+
+            return;
+        }
+
+        setStrikerId((current) => {
+            if (current === null) {
+                return null;
             }
 
-            setStrikerId((current) => {
-                if (current === null) {
-                    return null;
-                }
+            const blockIds = currentBlockPlayers.map((player) => player.id);
 
-                const blockIds = currentBlockPlayers.map(
-                    (player) => player.id,
-                );
+            return blockIds.includes(current) ? current : null;
+        });
+    }, [currentBlockPlayers, isOurs]);
 
-                return blockIds.includes(current) ? current : null;
-            });
-        } else {
-            setBowlerId(currentOverBowlerIdValue);
+    useEffect(() => {
+        if (isOurs) {
+            return;
         }
-    }, [currentBlockPlayers, currentOverBowlerIdValue, isOurs]);
+
+        if (currentOverBowlerIdValue !== null) {
+            setBowlerId((current) =>
+                current === currentOverBowlerIdValue
+                    ? current
+                    : currentOverBowlerIdValue,
+            );
+            setBowlerChosenOverNo(state.over_no);
+
+            return;
+        }
+
+        if (state.balls_bowled_this_over === 0) {
+            setBowlerId(null);
+            setBowlerChosenOverNo(null);
+        }
+    }, [
+        isOurs,
+        currentOverBowlerIdValue,
+        state.over_no,
+        state.balls_bowled_this_over,
+    ]);
 
     const refreshFromSync = useCallback(() => {
         setDeliveries([...sync.readLog()]);
@@ -702,7 +730,31 @@ export default function ScoringIndex(props: PageProps) {
     const blockPlayerIds = currentBlockPlayers.map((player) => player.id);
     const strikerSelected =
         strikerId !== null && blockPlayerIds.includes(strikerId);
-    const bowlerSelected = bowlerId !== null;
+    const bowlerForCurrentOver = useMemo(() => {
+        if (isOurs) {
+            return null;
+        }
+
+        if (currentOverBowlerIdValue !== null) {
+            return currentOverBowlerIdValue;
+        }
+
+        if (
+            bowlerId !== null &&
+            bowlerChosenOverNo === state.over_no
+        ) {
+            return bowlerId;
+        }
+
+        return null;
+    }, [
+        isOurs,
+        currentOverBowlerIdValue,
+        bowlerId,
+        bowlerChosenOverNo,
+        state.over_no,
+    ]);
+    const bowlerSelected = bowlerForCurrentOver !== null;
     const inputsLocked = state.is_complete || state.balls_remaining === 0;
     const scorerReady = isOurs ? strikerSelected : bowlerSelected;
     const scoringEnabled =
@@ -717,7 +769,9 @@ export default function ScoringIndex(props: PageProps) {
         currentBlockPlayers.length >= 2 &&
         !strikerSelected;
     const battingSideName = isOurs ? team.name : fixture.opponent;
-    const currentBowler = players.find((player) => player.id === bowlerId);
+    const currentBowler = players.find(
+        (player) => player.id === bowlerForCurrentOver,
+    );
 
     const eligibleBowlers =
         !isOurs && state.balls_bowled_this_over === 0
@@ -739,7 +793,7 @@ export default function ScoringIndex(props: PageProps) {
             return;
         }
 
-        if (!isOurs && bowlerId === null) {
+        if (!isOurs && bowlerForCurrentOver === null) {
             return;
         }
 
@@ -752,7 +806,7 @@ export default function ScoringIndex(props: PageProps) {
                   extra_type: payload.extra_type ?? null,
               }
             : {
-                  bowler_id: bowlerId,
+                  bowler_id: bowlerForCurrentOver,
                   runs: payload.runs,
                   is_out: payload.is_out,
                   extra_type: payload.extra_type ?? null,
@@ -1241,13 +1295,14 @@ export default function ScoringIndex(props: PageProps) {
                             <Label htmlFor="bowler">Bowler this over</Label>
                             <Select
                                 value={
-                                    bowlerId !== null
-                                        ? String(bowlerId)
+                                    bowlerForCurrentOver !== null
+                                        ? String(bowlerForCurrentOver)
                                         : undefined
                                 }
-                                onValueChange={(value) =>
-                                    setBowlerId(Number(value))
-                                }
+                                onValueChange={(value) => {
+                                    setBowlerId(Number(value));
+                                    setBowlerChosenOverNo(state.over_no);
+                                }}
                                 disabled={
                                     inputsLocked ||
                                     state.balls_bowled_this_over > 0
