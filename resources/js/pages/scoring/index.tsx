@@ -290,6 +290,50 @@ function initialStrikerId(
     return currentPair?.players[0]?.id ?? null;
 }
 
+function strikerAfterRecordedDelivery(
+    logBefore: Delivery[],
+    logAfter: Delivery[],
+    pairs: Pair[],
+    fixtureConfig: { overs: number; balls_per_over: number },
+    strikerOnStrike: number | null,
+    isOut: boolean,
+): number | null {
+    const beforeState = deriveState(logBefore, fixtureConfig, 'ours', pairs);
+    const afterState = deriveState(logAfter, fixtureConfig, 'ours', pairs);
+    const afterPair = afterState.current_pair;
+
+    if (afterPair === null || afterPair.players.length < 2) {
+        return strikerOnStrike;
+    }
+
+    const pairChanged =
+        beforeState.current_pair?.position !== afterPair.position;
+
+    if (pairChanged) {
+        return afterPair.players[0]?.id ?? null;
+    }
+
+    let swap = false;
+
+    if (isOut) {
+        swap = true;
+    } else if (afterState.over_no > beforeState.over_no) {
+        swap = true;
+    }
+
+    if (!swap || strikerOnStrike === null) {
+        return strikerOnStrike;
+    }
+
+    const pairIds = afterPair.players.map((player) => player.id);
+
+    return (
+        pairIds.find((id) => id !== strikerOnStrike) ??
+        afterPair.players[0]?.id ??
+        null
+    );
+}
+
 function OverStrip({ deliveries }: { deliveries: OverStripDelivery[] }) {
     if (deliveries.length === 0) {
         return (
@@ -666,6 +710,8 @@ export default function ScoringIndex(props: PageProps) {
             return;
         }
 
+        const logBefore = sync.readLog();
+        const strikerOnStrike = strikerId;
         const clientUuid = generateClientUuid();
         const recordPayload: RecordPayload = isOurs
             ? {
@@ -688,6 +734,22 @@ export default function ScoringIndex(props: PageProps) {
         });
 
         refreshFromSync();
+
+        if (isOurs) {
+            const nextStriker = strikerAfterRecordedDelivery(
+                logBefore,
+                sync.readLog(),
+                pairs,
+                fixtureConfig,
+                strikerOnStrike,
+                payload.is_out,
+            );
+
+            if (nextStriker !== null) {
+                setStrikerId(nextStriker);
+            }
+        }
+
         setActiveExtra(null);
         setShowOutOptions(false);
         void runFlush();
