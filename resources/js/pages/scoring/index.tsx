@@ -34,7 +34,6 @@ import {
     bowlingFiguresFromLog,
     currentOverBowlerId,
     currentOverDeliveriesFromLog,
-    currentOverStrikerId,
     previousOverBowlerId,
     type OverStripDelivery,
 } from '@/scoring/clientFigures';
@@ -300,64 +299,6 @@ function createSender(inningsId: number): Sender {
     };
 }
 
-function initialStrikerId(
-    lastStrikerId: number | null,
-    blockPlayers: Player[],
-): number | null {
-    const blockIds = blockPlayers.map((player) => player.id);
-
-    if (lastStrikerId !== null && blockIds.includes(lastStrikerId)) {
-        return lastStrikerId;
-    }
-
-    return blockPlayers[0]?.id ?? null;
-}
-
-function strikerAfterRecordedDelivery(
-    logBefore: Delivery[],
-    logAfter: Delivery[],
-    fixtureConfig: { overs: number; balls_per_over: number },
-    strikerOnStrike: number | null,
-    isOut: boolean,
-    blockMap: BattingBlockMap,
-): number | null {
-    const beforeState = deriveState(logBefore, fixtureConfig, 'ours');
-    const afterState = deriveState(logAfter, fixtureConfig, 'ours');
-    const blockNumber = afterState.current_block_number;
-
-    if (blockNumber === null) {
-        return strikerOnStrike;
-    }
-
-    const block = blockMap[blockNumber];
-
-    if (block === undefined) {
-        return strikerOnStrike;
-    }
-
-    const blockIds = [block.player_a_id, block.player_b_id];
-
-    if (beforeState.current_block_number !== afterState.current_block_number) {
-        return block.player_a_id;
-    }
-
-    let swap = false;
-
-    if (isOut) {
-        swap = true;
-    } else if (afterState.over_no > beforeState.over_no) {
-        swap = true;
-    }
-
-    if (!swap || strikerOnStrike === null) {
-        return strikerOnStrike;
-    }
-
-    return (
-        blockIds.find((id) => id !== strikerOnStrike) ?? block.player_a_id
-    );
-}
-
 function OverStrip({ deliveries }: { deliveries: OverStripDelivery[] }) {
     if (deliveries.length === 0) {
         return (
@@ -492,9 +433,6 @@ export default function ScoringIndex(props: PageProps) {
         deliveries,
         fixtureConfig,
     );
-    const lastStrikerId = isOurs
-        ? currentOverStrikerId(deliveries, fixtureConfig)
-        : null;
     const currentBlockNumber = state.current_block_number ?? 1;
     const currentBlockEntry = blockMap[currentBlockNumber];
     const currentBlockPlayers = useMemo(
@@ -520,11 +458,7 @@ export default function ScoringIndex(props: PageProps) {
         ? bowlingFiguresFromLog(deliveries, fixtureConfig, players)
         : [];
 
-    const [strikerId, setStrikerId] = useState<number | null>(() =>
-        isOurs
-            ? initialStrikerId(lastStrikerId, currentBlockPlayers)
-            : null,
-    );
+    const [strikerId, setStrikerId] = useState<number | null>(null);
     const [bowlerId, setBowlerId] = useState<number | null>(
         currentOverBowlerIdValue,
     );
@@ -537,30 +471,26 @@ export default function ScoringIndex(props: PageProps) {
     useEffect(() => {
         if (isOurs) {
             if (currentBlockPlayers.length === 0) {
+                setStrikerId(null);
+
                 return;
             }
 
             setStrikerId((current) => {
+                if (current === null) {
+                    return null;
+                }
+
                 const blockIds = currentBlockPlayers.map(
                     (player) => player.id,
                 );
 
-                if (current !== null && blockIds.includes(current)) {
-                    return current;
-                }
-
-                return initialStrikerId(lastStrikerId, currentBlockPlayers);
+                return blockIds.includes(current) ? current : null;
             });
         } else {
             setBowlerId(currentOverBowlerIdValue);
         }
-    }, [
-        derived.over_no,
-        currentBlockPlayers,
-        lastStrikerId,
-        currentOverBowlerIdValue,
-        isOurs,
-    ]);
+    }, [currentBlockPlayers, currentOverBowlerIdValue, isOurs]);
 
     const refreshFromSync = useCallback(() => {
         setDeliveries([...sync.readLog()]);
@@ -765,7 +695,7 @@ export default function ScoringIndex(props: PageProps) {
 
         refreshFromSync();
         setBlockPickIds([]);
-        setStrikerId(playerAId);
+        setStrikerId(null);
         void runFlush();
     };
 
@@ -780,6 +710,12 @@ export default function ScoringIndex(props: PageProps) {
         scorerReady &&
         failedAction === null &&
         !blockRequiredActive;
+    const strikerPickRequired =
+        isOurs &&
+        !inputsLocked &&
+        !blockRequiredActive &&
+        currentBlockPlayers.length >= 2 &&
+        !strikerSelected;
     const battingSideName = isOurs ? team.name : fixture.opponent;
     const currentBowler = players.find((player) => player.id === bowlerId);
 
@@ -807,8 +743,6 @@ export default function ScoringIndex(props: PageProps) {
             return;
         }
 
-        const logBefore = sync.readLog();
-        const strikerOnStrike = strikerId;
         const clientUuid = generateClientUuid();
         const recordPayload: RecordPayload = isOurs
             ? {
@@ -833,18 +767,7 @@ export default function ScoringIndex(props: PageProps) {
         refreshFromSync();
 
         if (isOurs) {
-            const nextStriker = strikerAfterRecordedDelivery(
-                logBefore,
-                sync.readLog(),
-                fixtureConfig,
-                strikerOnStrike,
-                payload.is_out,
-                sync.readBlocks(),
-            );
-
-            if (nextStriker !== null) {
-                setStrikerId(nextStriker);
-            }
+            setStrikerId(null);
         }
 
         setActiveExtra(null);
@@ -889,6 +812,11 @@ export default function ScoringIndex(props: PageProps) {
         });
 
         refreshFromSync();
+
+        if (isOurs) {
+            setStrikerId(null);
+        }
+
         void runFlush();
     };
 
@@ -1262,30 +1190,49 @@ export default function ScoringIndex(props: PageProps) {
 
                 <div className="flex flex-col gap-4 px-4 pt-4">
                     {isOurs && currentBlockPlayers.length >= 2 && (
-                        <div className="grid grid-cols-2 gap-3">
-                            {currentBlockPlayers.map((player) => (
-                                <button
-                                    key={player.id}
-                                    type="button"
-                                    disabled={inputsLocked}
-                                    onClick={() => setStrikerId(player.id)}
-                                    className={cn(
-                                        'min-h-14 rounded-xl border px-3 py-3 text-left transition-colors',
-                                        strikerId === player.id
-                                            ? 'border-primary bg-primary text-primary-foreground'
-                                            : 'border-input bg-background hover:bg-muted',
-                                        inputsLocked &&
-                                            'cursor-not-allowed opacity-50',
-                                    )}
-                                >
-                                    <span className="block text-xs opacity-80">
-                                        {player.squad_number ?? '—'}
-                                    </span>
-                                    <span className="block text-base font-semibold">
-                                        {player.name}
-                                    </span>
-                                </button>
-                            ))}
+                        <div
+                            className={cn(
+                                'space-y-3 rounded-xl border p-4',
+                                strikerPickRequired
+                                    ? 'border-primary/50 bg-primary/5'
+                                    : 'border-transparent p-0',
+                            )}
+                        >
+                            {strikerPickRequired && (
+                                <p className="text-center text-base font-semibold">
+                                    Select the striker for this ball
+                                </p>
+                            )}
+                            <div className="grid grid-cols-2 gap-3">
+                                {currentBlockPlayers.map((player) => (
+                                    <button
+                                        key={player.id}
+                                        type="button"
+                                        disabled={inputsLocked}
+                                        onClick={() =>
+                                            setStrikerId(player.id)
+                                        }
+                                        className={cn(
+                                            'min-h-20 rounded-xl border-2 px-4 py-4 text-left transition-colors',
+                                            strikerId === player.id
+                                                ? 'border-primary bg-primary text-primary-foreground shadow-md'
+                                                : 'border-input bg-background hover:bg-muted',
+                                            strikerPickRequired &&
+                                                strikerId !== player.id &&
+                                                'border-primary/30',
+                                            inputsLocked &&
+                                                'cursor-not-allowed opacity-50',
+                                        )}
+                                    >
+                                        <span className="block text-sm opacity-80">
+                                            {player.squad_number ?? '—'}
+                                        </span>
+                                        <span className="block text-lg font-bold">
+                                            {player.name}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     )}
 
@@ -1327,11 +1274,9 @@ export default function ScoringIndex(props: PageProps) {
                         </div>
                     )}
 
-                    {!scorerReady && !inputsLocked && (
+                    {!scorerReady && !inputsLocked && !isOurs && (
                         <p className="text-muted-foreground text-center text-sm">
-                            {isOurs
-                                ? 'Select a striker to record runs'
-                                : 'Select a bowler for this over'}
+                            Select a bowler for this over
                         </p>
                     )}
 
