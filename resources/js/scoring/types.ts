@@ -20,11 +20,6 @@ export type Player = {
     squad_number: number | null;
 };
 
-export type Pair = {
-    position: number;
-    players: [Player, Player];
-};
-
 export type InningsType = 'ours' | 'opposition';
 
 export type RecordPayload = {
@@ -35,11 +30,34 @@ export type RecordPayload = {
     extra_type?: ExtraType | null;
 };
 
-export type SyncAction = {
-    type: 'record' | 'undo';
-    client_uuid: string;
-    payload?: RecordPayload;
+export type StoreBlockPayload = {
+    block_number: number;
+    player_a_id: number;
+    player_b_id: number;
 };
+
+export type BattingBlockEntry = {
+    player_a_id: number;
+    player_b_id: number;
+};
+
+export type BattingBlockMap = Record<number, BattingBlockEntry>;
+
+export type SyncAction =
+    | {
+          type: 'record';
+          client_uuid: string;
+          payload?: RecordPayload;
+      }
+    | {
+          type: 'undo';
+          client_uuid: string;
+      }
+    | {
+          type: 'store_block';
+          client_uuid: string;
+          payload: StoreBlockPayload;
+      };
 
 export type SenderResult =
     | { ok: true }
@@ -67,8 +85,5 @@ export type DerivedState = {
     total_runs: number;
     wickets: number;
     balls_remaining: number;
-    current_pair: {
-        position: number;
-        players: Player[];
-    } | null;
+    current_block_number: number | null;
 };

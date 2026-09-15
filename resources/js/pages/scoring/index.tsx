@@ -36,23 +36,22 @@ import {
     currentOverDeliveriesFromLog,
     currentOverStrikerId,
     previousOverBowlerId,
-    upcomingPairsFromLog,
     type OverStripDelivery,
 } from '@/scoring/clientFigures';
 import { generateClientUuid } from '@/scoring/deliveryLog';
 import { deriveState } from '@/scoring/deriveState';
 import { createSyncQueue } from '@/scoring/syncQueue';
 import type {
+    BattingBlockMap,
     Delivery,
     ExtraType,
-    Pair,
     Player,
     RecordPayload,
     Sender,
     SyncAction,
 } from '@/scoring/types';
 
-const PAIR_CHECKPOINT_OVERS = [4, 7, 10] as const;
+const BLOCK_CHECKPOINT_OVERS = [4, 7, 10] as const;
 const FLUSH_INTERVAL_MS = 5000;
 
 type ServerDelivery = {
@@ -65,11 +64,6 @@ type ServerDelivery = {
     extra_type: ExtraType | null;
 };
 
-type CurrentPair = {
-    position: number;
-    players: Player[];
-};
-
 type ScoringState = {
     over_no: number;
     balls_bowled_this_over: number;
@@ -79,12 +73,13 @@ type ScoringState = {
     wickets: number;
     is_complete: boolean;
     balls_remaining: number;
-    current_pair: CurrentPair | null;
+    current_block_number: number | null;
 };
 
-type UpcomingPair = {
-    position: number;
-    label: string;
+type ServerBattingBlock = {
+    block_number: number;
+    player_a_id: number | null;
+    player_b_id: number | null;
 };
 
 type BasePageProps = {
@@ -111,8 +106,8 @@ type BasePageProps = {
 type OursPageProps = BasePageProps & {
     isOurs: true;
     lastStrikerId: number | null;
-    upcomingPairs: UpcomingPair[];
-    pairs: { position: number; players: Player[] }[];
+    selectedPlayers: Player[];
+    battingBlocks: ServerBattingBlock[];
 };
 
 type OppositionPageProps = BasePageProps & {
@@ -168,55 +163,83 @@ function seedLog(
     return stored;
 }
 
-function buildInitialPairs(props: PageProps): Pair[] {
-    if (!props.isOurs) {
+function serverBlocksToMap(blocks: ServerBattingBlock[]): BattingBlockMap {
+    const map: BattingBlockMap = {};
+
+    for (const block of blocks) {
+        if (
+            block.player_a_id !== null &&
+            block.player_b_id !== null
+        ) {
+            map[block.block_number] = {
+                player_a_id: block.player_a_id,
+                player_b_id: block.player_b_id,
+            };
+        }
+    }
+
+    return map;
+}
+
+function seedBlocks(
+    sync: ReturnType<typeof createSyncQueue>,
+    serverBlocks: ServerBattingBlock[] | undefined,
+): BattingBlockMap {
+    const stored = sync.readBlocks();
+    const hasPendingBlocks = sync
+        .pending()
+        .some((action) => action.type === 'store_block');
+
+    if (Object.keys(stored).length > 0 || hasPendingBlocks) {
+        return stored;
+    }
+
+    if (serverBlocks !== undefined) {
+        const map = serverBlocksToMap(serverBlocks);
+        sync.writeBlocks(map);
+
+        return map;
+    }
+
+    return stored;
+}
+
+function playersForBlock(
+    block: BattingBlockMap[number] | undefined,
+    selectedPlayers: Player[],
+): Player[] {
+    if (block === undefined) {
         return [];
     }
 
-    return props.pairs
-        .filter((pair) => pair.players.length >= 2)
-        .map((pair) => ({
-            position: pair.position,
-            players: [pair.players[0], pair.players[1]] as [Player, Player],
-        }))
-        .sort((left, right) => left.position - right.position);
-}
-
-function mergePair(
-    pairs: Pair[],
-    next: { position: number; players: Player[] } | null,
-): Pair[] {
-    if (next === null || next.players.length < 2) {
-        return pairs;
-    }
-
-    const map = new Map(pairs.map((pair) => [pair.position, pair]));
-
-    map.set(next.position, {
-        position: next.position,
-        players: [next.players[0], next.players[1]],
-    });
-
-    return [...map.values()].sort(
-        (left, right) => left.position - right.position,
+    return selectedPlayers.filter(
+        (player) =>
+            player.id === block.player_a_id ||
+            player.id === block.player_b_id,
     );
 }
 
 function createSender(inningsId: number): Sender {
     return async (action) => {
         const csrf = getCsrfToken();
-        const url =
-            action.type === 'record'
-                ? `/innings/${inningsId}/deliveries`
-                : `/innings/${inningsId}/undo`;
+        let url = `/innings/${inningsId}/undo`;
+        let body = JSON.stringify({});
 
-        const body =
-            action.type === 'record'
-                ? JSON.stringify({
-                      ...action.payload,
-                      client_uuid: action.client_uuid,
-                  })
-                : JSON.stringify({});
+        if (action.type === 'record') {
+            url = `/innings/${inningsId}/deliveries`;
+            body = JSON.stringify({
+                ...action.payload,
+                client_uuid: action.client_uuid,
+            });
+        }
+
+        if (action.type === 'store_block') {
+            url = `/innings/${inningsId}/blocks`;
+            body = JSON.stringify({
+                ...action.payload,
+                client_uuid: action.client_uuid,
+            });
+        }
 
         try {
             const response = await fetch(url, {
@@ -279,38 +302,43 @@ function createSender(inningsId: number): Sender {
 
 function initialStrikerId(
     lastStrikerId: number | null,
-    currentPair: CurrentPair | null,
+    blockPlayers: Player[],
 ): number | null {
-    const pairIds = currentPair?.players.map((player) => player.id) ?? [];
+    const blockIds = blockPlayers.map((player) => player.id);
 
-    if (lastStrikerId !== null && pairIds.includes(lastStrikerId)) {
+    if (lastStrikerId !== null && blockIds.includes(lastStrikerId)) {
         return lastStrikerId;
     }
 
-    return currentPair?.players[0]?.id ?? null;
+    return blockPlayers[0]?.id ?? null;
 }
 
 function strikerAfterRecordedDelivery(
     logBefore: Delivery[],
     logAfter: Delivery[],
-    pairs: Pair[],
     fixtureConfig: { overs: number; balls_per_over: number },
     strikerOnStrike: number | null,
     isOut: boolean,
+    blockMap: BattingBlockMap,
 ): number | null {
-    const beforeState = deriveState(logBefore, fixtureConfig, 'ours', pairs);
-    const afterState = deriveState(logAfter, fixtureConfig, 'ours', pairs);
-    const afterPair = afterState.current_pair;
+    const beforeState = deriveState(logBefore, fixtureConfig, 'ours');
+    const afterState = deriveState(logAfter, fixtureConfig, 'ours');
+    const blockNumber = afterState.current_block_number;
 
-    if (afterPair === null || afterPair.players.length < 2) {
+    if (blockNumber === null) {
         return strikerOnStrike;
     }
 
-    const pairChanged =
-        beforeState.current_pair?.position !== afterPair.position;
+    const block = blockMap[blockNumber];
 
-    if (pairChanged) {
-        return afterPair.players[0]?.id ?? null;
+    if (block === undefined) {
+        return strikerOnStrike;
+    }
+
+    const blockIds = [block.player_a_id, block.player_b_id];
+
+    if (beforeState.current_block_number !== afterState.current_block_number) {
+        return block.player_a_id;
     }
 
     let swap = false;
@@ -325,12 +353,8 @@ function strikerAfterRecordedDelivery(
         return strikerOnStrike;
     }
 
-    const pairIds = afterPair.players.map((player) => player.id);
-
     return (
-        pairIds.find((id) => id !== strikerOnStrike) ??
-        afterPair.players[0]?.id ??
-        null
+        blockIds.find((id) => id !== strikerOnStrike) ?? block.player_a_id
     );
 }
 
@@ -427,10 +451,15 @@ export default function ScoringIndex(props: PageProps) {
         [fixture.overs, fixture.balls_per_over],
     );
 
+    const selectedPlayers = isOurs ? props.selectedPlayers : [];
+
     const [deliveries, setDeliveries] = useState<Delivery[]>(() =>
         seedLog(sync, props.deliveries),
     );
-    const [pairs, setPairs] = useState<Pair[]>(() => buildInitialPairs(props));
+    const [blockMap, setBlockMap] = useState<BattingBlockMap>(() =>
+        isOurs ? seedBlocks(sync, props.battingBlocks) : {},
+    );
+    const [blockPickIds, setBlockPickIds] = useState<number[]>([]);
     const [isComplete, setIsComplete] = useState(props.state.is_complete);
     const [pendingCount, setPendingCount] = useState(
         () => sync.pending().length,
@@ -452,7 +481,6 @@ export default function ScoringIndex(props: PageProps) {
         deliveries,
         fixtureConfig,
         isOurs ? 'ours' : 'opposition',
-        pairs,
     );
 
     const state: ScoringState = {
@@ -467,11 +495,20 @@ export default function ScoringIndex(props: PageProps) {
     const lastStrikerId = isOurs
         ? currentOverStrikerId(deliveries, fixtureConfig)
         : null;
+    const currentBlockNumber = state.current_block_number ?? 1;
+    const currentBlockEntry = blockMap[currentBlockNumber];
+    const currentBlockPlayers = useMemo(
+        () => playersForBlock(currentBlockEntry, selectedPlayers),
+        [currentBlockEntry, selectedPlayers],
+    );
+
     const battingFigures = isOurs
-        ? battingFiguresFromLog(deliveries, fixtureConfig, pairs)
-        : [];
-    const upcomingPairs = isOurs
-        ? upcomingPairsFromLog(pairs, state.current_pair?.position ?? 0)
+        ? battingFiguresFromLog(
+              deliveries,
+              fixtureConfig,
+              selectedPlayers,
+              blockMap,
+          )
         : [];
     const currentOverBowlerIdValue = !isOurs
         ? currentOverBowlerId(deliveries, fixtureConfig)
@@ -484,7 +521,9 @@ export default function ScoringIndex(props: PageProps) {
         : [];
 
     const [strikerId, setStrikerId] = useState<number | null>(() =>
-        isOurs ? initialStrikerId(lastStrikerId, state.current_pair) : null,
+        isOurs
+            ? initialStrikerId(lastStrikerId, currentBlockPlayers)
+            : null,
     );
     const [bowlerId, setBowlerId] = useState<number | null>(
         currentOverBowlerIdValue,
@@ -496,34 +535,28 @@ export default function ScoringIndex(props: PageProps) {
         useState<number[]>([]);
 
     useEffect(() => {
-        if (derived.current_pair !== null) {
-            setPairs((current) => mergePair(current, derived.current_pair));
-        }
-    }, [derived.current_pair]);
-
-    useEffect(() => {
         if (isOurs) {
-            if (derived.current_pair === null) {
+            if (currentBlockPlayers.length === 0) {
                 return;
             }
 
             setStrikerId((current) => {
-                const pairIds = derived.current_pair!.players.map(
+                const blockIds = currentBlockPlayers.map(
                     (player) => player.id,
                 );
 
-                if (current !== null && pairIds.includes(current)) {
+                if (current !== null && blockIds.includes(current)) {
                     return current;
                 }
 
-                return initialStrikerId(lastStrikerId, derived.current_pair);
+                return initialStrikerId(lastStrikerId, currentBlockPlayers);
             });
         } else {
             setBowlerId(currentOverBowlerIdValue);
         }
     }, [
         derived.over_no,
-        derived.current_pair,
+        currentBlockPlayers,
         lastStrikerId,
         currentOverBowlerIdValue,
         isOurs,
@@ -531,6 +564,7 @@ export default function ScoringIndex(props: PageProps) {
 
     const refreshFromSync = useCallback(() => {
         setDeliveries([...sync.readLog()]);
+        setBlockMap({ ...sync.readBlocks() });
         setPendingCount(sync.pending().length);
     }, [sync]);
 
@@ -539,11 +573,11 @@ export default function ScoringIndex(props: PageProps) {
             only: [
                 'state',
                 'deliveries',
-                'pairs',
+                'battingBlocks',
+                'selectedPlayers',
                 'lastStrikerId',
                 'currentOverBowlerId',
                 'previousOverBowlerId',
-                'upcomingPairs',
             ],
             onSuccess: (page) => {
                 const nextProps = page.props as unknown as PageProps;
@@ -560,8 +594,10 @@ export default function ScoringIndex(props: PageProps) {
                     setDeliveries(log);
                 }
 
-                if (nextProps.isOurs) {
-                    setPairs(buildInitialPairs(nextProps));
+                if (nextProps.isOurs && sync.pending().length === 0) {
+                    const map = serverBlocksToMap(nextProps.battingBlocks);
+                    sync.writeBlocks(map);
+                    setBlockMap(map);
                 }
             },
         });
@@ -657,16 +693,38 @@ export default function ScoringIndex(props: PageProps) {
         };
     }, [failedAction, runFlush]);
 
-    const pairCheckpointActive =
+    const usedInOtherBlocks = useMemo(() => {
+        const ids = new Set<number>();
+
+        for (const [blockNumber, entry] of Object.entries(blockMap)) {
+            if (Number(blockNumber) === currentBlockNumber) {
+                continue;
+            }
+
+            ids.add(entry.player_a_id);
+            ids.add(entry.player_b_id);
+        }
+
+        return ids;
+    }, [blockMap, currentBlockNumber]);
+
+    const availableForBlock = selectedPlayers.filter(
+        (player) => !usedInOtherBlocks.has(player.id),
+    );
+
+    const blockRequiredActive =
+        isOurs && !state.is_complete && currentBlockEntry === undefined;
+
+    const blockCheckpointActive =
         isOurs &&
-        PAIR_CHECKPOINT_OVERS.includes(
-            state.over_no as (typeof PAIR_CHECKPOINT_OVERS)[number],
+        BLOCK_CHECKPOINT_OVERS.includes(
+            state.over_no as (typeof BLOCK_CHECKPOINT_OVERS)[number],
         ) &&
         state.balls_bowled_this_over === 0 &&
         !acknowledgedCheckpointOvers.includes(state.over_no) &&
-        state.current_pair !== null;
+        currentBlockEntry !== undefined;
 
-    const acknowledgePairCheckpoint = () => {
+    const acknowledgeBlockCheckpoint = () => {
         setAcknowledgedCheckpointOvers((current) =>
             current.includes(state.over_no)
                 ? current
@@ -674,15 +732,54 @@ export default function ScoringIndex(props: PageProps) {
         );
     };
 
-    const pairPlayerIds =
-        state.current_pair?.players.map((player) => player.id) ?? [];
+    const toggleBlockPick = (playerId: number) => {
+        setBlockPickIds((current) => {
+            if (current.includes(playerId)) {
+                return current.filter((id) => id !== playerId);
+            }
+
+            if (current.length >= 2) {
+                return current;
+            }
+
+            return [...current, playerId];
+        });
+    };
+
+    const confirmBlockSelection = () => {
+        if (blockPickIds.length !== 2) {
+            return;
+        }
+
+        const [playerAId, playerBId] = blockPickIds;
+
+        sync.enqueue({
+            type: 'store_block',
+            client_uuid: generateClientUuid(),
+            payload: {
+                block_number: currentBlockNumber,
+                player_a_id: playerAId,
+                player_b_id: playerBId,
+            },
+        });
+
+        refreshFromSync();
+        setBlockPickIds([]);
+        setStrikerId(playerAId);
+        void runFlush();
+    };
+
+    const blockPlayerIds = currentBlockPlayers.map((player) => player.id);
     const strikerSelected =
-        strikerId !== null && pairPlayerIds.includes(strikerId);
+        strikerId !== null && blockPlayerIds.includes(strikerId);
     const bowlerSelected = bowlerId !== null;
     const inputsLocked = state.is_complete || state.balls_remaining === 0;
     const scorerReady = isOurs ? strikerSelected : bowlerSelected;
     const scoringEnabled =
-        !inputsLocked && scorerReady && failedAction === null;
+        !inputsLocked &&
+        scorerReady &&
+        failedAction === null &&
+        !blockRequiredActive;
     const battingSideName = isOurs ? team.name : fixture.opponent;
     const currentBowler = players.find((player) => player.id === bowlerId);
 
@@ -739,10 +836,10 @@ export default function ScoringIndex(props: PageProps) {
             const nextStriker = strikerAfterRecordedDelivery(
                 logBefore,
                 sync.readLog(),
-                pairs,
                 fixtureConfig,
                 strikerOnStrike,
                 payload.is_out,
+                sync.readBlocks(),
             );
 
             if (nextStriker !== null) {
@@ -866,6 +963,15 @@ export default function ScoringIndex(props: PageProps) {
                         failedAction.action.client_uuid,
                 ),
             );
+        } else if (failedAction.action.type === 'store_block') {
+            const blocks = { ...sync.readBlocks() };
+            const blockNumber =
+                failedAction.action.payload?.block_number;
+
+            if (blockNumber !== undefined) {
+                delete blocks[blockNumber];
+                sync.writeBlocks(blocks);
+            }
         } else if (failedAction.undoneDelivery !== undefined) {
             sync.writeLog([...log, failedAction.undoneDelivery]);
         }
@@ -878,7 +984,14 @@ export default function ScoringIndex(props: PageProps) {
     };
 
     const retryFailedAction = () => {
-        if (failedAction === null || failedAction.action.type !== 'record') {
+        if (failedAction === null) {
+            return;
+        }
+
+        if (
+            failedAction.action.type !== 'record' &&
+            failedAction.action.type !== 'store_block'
+        ) {
             return;
         }
 
@@ -888,10 +1001,10 @@ export default function ScoringIndex(props: PageProps) {
 
         if (payload !== undefined) {
             sync.enqueue({
-                type: 'record',
+                type: failedAction.action.type,
                 client_uuid: generateClientUuid(),
                 payload,
-            });
+            } as SyncAction);
 
             refreshFromSync();
             void runFlush();
@@ -921,25 +1034,84 @@ export default function ScoringIndex(props: PageProps) {
             return parts.join(' · ');
         }
 
+        if (failedAction.action.type === 'store_block') {
+            const payload = failedAction.action.payload;
+
+            return payload
+                ? `Block ${payload.block_number} batsmen`
+                : 'Batting block';
+        }
+
         return 'Undo last ball';
     };
+
+    useEffect(() => {
+        if (blockRequiredActive) {
+            setBlockPickIds([]);
+        }
+    }, [currentBlockNumber, blockRequiredActive]);
 
     return (
         <>
             <Head title={`Score vs ${fixture.opponent}`} />
 
-            <Dialog open={pairCheckpointActive}>
+            <Dialog open={blockRequiredActive}>
                 <DialogContent
                     className="[&>button.absolute]:hidden"
                     onInteractOutside={(event) => event.preventDefault()}
                     onEscapeKeyDown={(event) => event.preventDefault()}
                 >
                     <DialogHeader>
-                        <DialogTitle>Next pair coming in</DialogTitle>
-                        {state.current_pair && (
+                        <DialogTitle>
+                            Choose batsmen for block {currentBlockNumber}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Pick two different players from those still
+                            available. Each player bats one block only.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-2">
+                        {availableForBlock.map((player) => (
+                            <button
+                                key={player.id}
+                                type="button"
+                                onClick={() => toggleBlockPick(player.id)}
+                                className={cn(
+                                    'min-h-12 rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors',
+                                    blockPickIds.includes(player.id)
+                                        ? 'border-primary bg-primary text-primary-foreground'
+                                        : 'border-input hover:bg-muted',
+                                )}
+                            >
+                                {player.squad_number ?? '—'} — {player.name}
+                            </button>
+                        ))}
+                    </div>
+                    <DialogFooter className="gap-2 sm:gap-2">
+                        <Button
+                            type="button"
+                            className="min-h-12 w-full"
+                            disabled={blockPickIds.length !== 2}
+                            onClick={confirmBlockSelection}
+                        >
+                            Start block
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={blockCheckpointActive}>
+                <DialogContent
+                    className="[&>button.absolute]:hidden"
+                    onInteractOutside={(event) => event.preventDefault()}
+                    onEscapeKeyDown={(event) => event.preventDefault()}
+                >
+                    <DialogHeader>
+                        <DialogTitle>Next batting block</DialogTitle>
+                        {currentBlockPlayers.length >= 2 && (
                             <DialogDescription className="text-base">
-                                Pair {state.current_pair.position} —{' '}
-                                {state.current_pair.players
+                                Block {currentBlockNumber} —{' '}
+                                {currentBlockPlayers
                                     .map((player) => player.name)
                                     .join(' & ')}
                             </DialogDescription>
@@ -948,18 +1120,8 @@ export default function ScoringIndex(props: PageProps) {
                     <DialogFooter className="gap-2 sm:gap-2">
                         <Button
                             type="button"
-                            variant="outline"
-                            className="min-h-12 flex-1"
-                            onClick={() =>
-                                router.visit(`/fixtures/${fixture.id}/pairs`)
-                            }
-                        >
-                            Manage pairs
-                        </Button>
-                        <Button
-                            type="button"
-                            className="min-h-12 flex-1"
-                            onClick={acknowledgePairCheckpoint}
+                            className="min-h-12 w-full"
+                            onClick={acknowledgeBlockCheckpoint}
                         >
                             Continue
                         </Button>
@@ -988,7 +1150,8 @@ export default function ScoringIndex(props: PageProps) {
                         >
                             Discard local change
                         </Button>
-                        {failedAction?.action.type === 'record' && (
+                        {(failedAction?.action.type === 'record' ||
+                            failedAction?.action.type === 'store_block') && (
                             <Button
                                 type="button"
                                 className="min-h-12 flex-1"
@@ -1064,10 +1227,10 @@ export default function ScoringIndex(props: PageProps) {
                         )}
                     </div>
 
-                    {isOurs && state.current_pair && (
+                    {isOurs && currentBlockPlayers.length >= 2 && (
                         <p className="text-muted-foreground mt-3 text-sm">
-                            Pair {state.current_pair.position}:{' '}
-                            {state.current_pair.players
+                            Block {currentBlockNumber}:{' '}
+                            {currentBlockPlayers
                                 .map((player) => player.name)
                                 .join(' & ')}
                         </p>
@@ -1098,9 +1261,9 @@ export default function ScoringIndex(props: PageProps) {
                 )}
 
                 <div className="flex flex-col gap-4 px-4 pt-4">
-                    {isOurs && state.current_pair && (
+                    {isOurs && currentBlockPlayers.length >= 2 && (
                         <div className="grid grid-cols-2 gap-3">
-                            {state.current_pair.players.map((player) => (
+                            {currentBlockPlayers.map((player) => (
                                 <button
                                     key={player.id}
                                     type="button"
@@ -1367,27 +1530,6 @@ export default function ScoringIndex(props: PageProps) {
                                 )}
                             </div>
 
-                            <div>
-                                <h2 className="mb-2 text-sm font-semibold">
-                                    Upcoming pairs
-                                </h2>
-                                {upcomingPairs.length === 0 ? (
-                                    <p className="text-muted-foreground text-sm">
-                                        No more pairs after this block
-                                    </p>
-                                ) : (
-                                    <ul className="divide-y rounded-xl border">
-                                        {upcomingPairs.map((pair) => (
-                                            <li
-                                                key={pair.position}
-                                                className="px-3 py-2 text-sm"
-                                            >
-                                                {pair.label}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
                         </>
                     ) : (
                         <div>

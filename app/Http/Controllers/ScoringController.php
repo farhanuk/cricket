@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BattingBlock;
 use App\Models\Fixture;
 use App\Models\Innings;
 use App\Models\Player;
 use App\Services\ScoringService;
 use App\Services\StatsService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -103,25 +106,15 @@ class ScoringController extends Controller
         ];
 
         if ($isOurs) {
-            $currentPairPosition = $state['current_pair']['position'] ?? 0;
-
             $payload['lastStrikerId'] = $scoringService->currentOverStrikerId($innings);
-            $payload['battingFigures'] = $statsService->battingCard($innings);
-            $payload['upcomingPairs'] = $scoringService->upcomingPairs($fixture, $currentPairPosition);
-            $payload['pairs'] = $fixture->pairs()
-                ->with(['playerA', 'playerB'])
-                ->orderBy('position')
-                ->get()
-                ->map(fn ($pair) => [
-                    'position' => $pair->position,
-                    'players' => collect([$pair->playerA, $pair->playerB])
-                        ->filter()
-                        ->map(fn (Player $player) => [
-                            'id' => $player->id,
-                            'name' => $player->name,
-                            'squad_number' => $player->squad_number,
-                        ])
-                        ->values(),
+            $payload['selectedPlayers'] = $players;
+            $payload['battingBlocks'] = $innings->battingBlocks()
+                ->orderBy('block_number')
+                ->get(['block_number', 'player_a_id', 'player_b_id'])
+                ->map(fn (BattingBlock $block) => [
+                    'block_number' => $block->block_number,
+                    'player_a_id' => $block->player_a_id,
+                    'player_b_id' => $block->player_b_id,
                 ])
                 ->values()
                 ->all();
@@ -132,6 +125,68 @@ class ScoringController extends Controller
         }
 
         return Inertia::render('scoring/index', $payload);
+    }
+
+    /**
+     * Store or update a batting block for an innings.
+     */
+    public function storeBlock(Request $request, Innings $innings): RedirectResponse|JsonResponse
+    {
+        if (! $innings->isOurs()) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'block_number' => ['required', 'integer', 'min:1', 'max:4'],
+            'player_a_id' => ['required', 'integer', 'exists:players,id'],
+            'player_b_id' => ['required', 'integer', 'exists:players,id', 'different:player_a_id'],
+        ]);
+
+        $innings->loadMissing('fixture.selections');
+
+        $selectedIds = $innings->fixture->selections->pluck('player_id')->all();
+
+        foreach (['player_a_id', 'player_b_id'] as $field) {
+            if (! in_array($validated[$field], $selectedIds, true)) {
+                throw ValidationException::withMessages([
+                    $field => __('The player must be in this fixture\'s selection.'),
+                ]);
+            }
+        }
+
+        $otherBlocks = $innings->battingBlocks()
+            ->where('block_number', '!=', $validated['block_number'])
+            ->get();
+
+        foreach ($otherBlocks as $block) {
+            $usedIds = array_filter([$block->player_a_id, $block->player_b_id]);
+
+            if (
+                in_array($validated['player_a_id'], $usedIds, true)
+                || in_array($validated['player_b_id'], $usedIds, true)
+            ) {
+                throw ValidationException::withMessages([
+                    'player_a_id' => __('Each player can only bat in one block per innings.'),
+                ]);
+            }
+        }
+
+        BattingBlock::query()->updateOrCreate(
+            [
+                'innings_id' => $innings->id,
+                'block_number' => $validated['block_number'],
+            ],
+            [
+                'player_a_id' => $validated['player_a_id'],
+                'player_b_id' => $validated['player_b_id'],
+            ],
+        );
+
+        if ($request->wantsJson()) {
+            return response()->json(['ok' => true]);
+        }
+
+        return redirect("/innings/{$innings->id}/score");
     }
 
     /**

@@ -173,11 +173,6 @@ export default function MatchIndex({
                         </Link>
                     </Button>
                     <Button variant="secondary" size="sm" asChild>
-                        <Link href={`/fixtures/${fixture.id}/pairs`}>
-                            Batting pairs
-                        </Link>
-                    </Button>
-                    <Button variant="secondary" size="sm" asChild>
                         <Link href={`/fixtures/${fixture.id}/scorecard`}>
                             View scorecard
                         </Link>

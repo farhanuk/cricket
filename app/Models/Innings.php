@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property-read Fixture $fixture
  * @property-read Team|null $battingTeam
  * @property-read Collection<int, Delivery> $deliveries
+ * @property-read Collection<int, BattingBlock> $battingBlocks
  */
 #[Fillable(['fixture_id', 'batting_team_id', 'sequence', 'completed_at'])]
 class Innings extends Model
@@ -63,6 +64,14 @@ class Innings extends Model
     public function deliveries(): HasMany
     {
         return $this->hasMany(Delivery::class);
+    }
+
+    /**
+     * @return HasMany<BattingBlock, $this>
+     */
+    public function battingBlocks(): HasMany
+    {
+        return $this->hasMany(BattingBlock::class);
     }
 
     public function isOurs(): bool

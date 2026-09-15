@@ -1,5 +1,10 @@
 import { deriveState } from './deriveState';
-import type { Delivery, FixtureConfig, Pair, Player } from './types';
+import type {
+    BattingBlockMap,
+    Delivery,
+    FixtureConfig,
+    Player,
+} from './types';
 
 export type OverStripDelivery = {
     key: string;
@@ -25,11 +30,6 @@ export type BowlingFigure = {
     economy: number;
     wides: number;
     no_balls: number;
-};
-
-export type UpcomingPair = {
-    position: number;
-    label: string;
 };
 
 function formatOvers(countingBalls: number, ballsPerOver: number): string {
@@ -170,25 +170,20 @@ export function previousOverBowlerId(
 export function battingFiguresFromLog(
     deliveries: Delivery[],
     fixture: FixtureConfig,
-    pairs: Pair[],
+    selectedPlayers: Player[],
+    blocks: BattingBlockMap,
 ): BattingFigure[] {
-    const battingOrder = new Map<number, { position: number; order: number }>();
+    const battingOrder = new Map<number, { block: number; order: number }>();
 
-    for (const pair of pairs) {
-        battingOrder.set(pair.players[0].id, {
-            position: pair.position,
-            order: 0,
-        });
-        battingOrder.set(pair.players[1].id, {
-            position: pair.position,
-            order: 1,
-        });
+    for (const [blockNumber, entry] of Object.entries(blocks)) {
+        const block = Number(blockNumber);
+
+        battingOrder.set(entry.player_a_id, { block, order: 0 });
+        battingOrder.set(entry.player_b_id, { block, order: 1 });
     }
 
     const playersById = new Map(
-        pairs
-            .flatMap((pair) => pair.players)
-            .map((player) => [player.id, player]),
+        selectedPlayers.map((player) => [player.id, player]),
     );
 
     const byStriker = new Map<
@@ -262,8 +257,8 @@ export function battingFiguresFromLog(
             const orderRight = battingOrder.get(right.playerId);
 
             if (orderLeft && orderRight) {
-                if (orderLeft.position !== orderRight.position) {
-                    return orderLeft.position - orderRight.position;
+                if (orderLeft.block !== orderRight.block) {
+                    return orderLeft.block - orderRight.block;
                 }
 
                 return orderLeft.order - orderRight.order;
@@ -372,15 +367,3 @@ export function bowlingFiguresFromLog(
         });
 }
 
-export function upcomingPairsFromLog(
-    pairs: Pair[],
-    currentPairPosition: number,
-): UpcomingPair[] {
-    return pairs
-        .filter((pair) => pair.position > currentPairPosition)
-        .sort((left, right) => left.position - right.position)
-        .map((pair) => ({
-            position: pair.position,
-            label: `Pair ${pair.position}: ${pair.players[0].name} & ${pair.players[1].name}`,
-        }));
-}

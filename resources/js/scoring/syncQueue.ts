@@ -1,9 +1,11 @@
 import { appendDelivery, undoLastDelivery } from './deliveryLog';
 import type {
+    BattingBlockMap,
     Delivery,
     FlushResult,
     RecordPayload,
     Sender,
+    StoreBlockPayload,
     SyncAction,
     SyncError,
 } from './types';
@@ -20,6 +22,10 @@ function queueKey(inningsId: number): string {
 
 function logKey(inningsId: number): string {
     return `cricket:log:innings:${inningsId}`;
+}
+
+function blocksKey(inningsId: number): string {
+    return `cricket:blocks:innings:${inningsId}`;
 }
 
 function errorsKey(inningsId: number): string {
@@ -58,6 +64,13 @@ export function createSyncQueue(
         writeJson(storage, logKey(inningsId), log);
     };
 
+    const readBlocks = (): BattingBlockMap =>
+        readJson(storage, blocksKey(inningsId), {} as BattingBlockMap);
+
+    const writeBlocks = (blocks: BattingBlockMap): void => {
+        writeJson(storage, blocksKey(inningsId), blocks);
+    };
+
     const readErrors = (): SyncError[] =>
         readJson(storage, errorsKey(inningsId), [] as SyncError[]);
 
@@ -72,6 +85,10 @@ export function createSyncQueue(
 
         if (action.type === 'undo') {
             applyUndoToLog();
+        }
+
+        if (action.type === 'store_block' && action.payload !== undefined) {
+            applyBlockToStore(action.payload);
         }
 
         const queue = readQueue();
@@ -124,6 +141,17 @@ export function createSyncQueue(
 
     const applyUndoToLog = (): void => {
         writeLog(undoLastDelivery(readLog()));
+    };
+
+    const applyBlockToStore = (payload: StoreBlockPayload): void => {
+        const blocks = readBlocks();
+
+        blocks[payload.block_number] = {
+            player_a_id: payload.player_a_id,
+            player_b_id: payload.player_b_id,
+        };
+
+        writeBlocks(blocks);
     };
 
     const markErrored = (error: SyncError): void => {
@@ -188,6 +216,8 @@ export function createSyncQueue(
         pending,
         readLog,
         writeLog,
+        readBlocks,
+        writeBlocks,
         readErrors,
         flush,
     };

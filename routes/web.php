@@ -29,6 +29,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('stats', [StatsController::class, 'index'])->name('stats.index');
     Route::post('fixtures/{fixture}/score', [ScoringController::class, 'start'])->name('scoring.start');
     Route::get('innings/{innings}/score', [ScoringController::class, 'show'])->name('scoring.show');
+    Route::post('innings/{innings}/blocks', [ScoringController::class, 'storeBlock'])->name('scoring.blocks.store');
     Route::post('innings/{innings}/deliveries', [ScoringController::class, 'record'])->name('scoring.record');
     Route::post('innings/{innings}/undo', [ScoringController::class, 'undo'])->name('scoring.undo');
     Route::post('innings/{innings}/complete', [ScoringController::class, 'complete'])->name('scoring.complete');
