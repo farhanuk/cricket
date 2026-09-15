@@ -1,20 +1,29 @@
-import { usePage } from '@inertiajs/react';
-
 import AppLogoIcon from '@/components/app-logo-icon';
+import { cn } from '@/lib/utils';
 
-export default function AppLogo() {
-    const { name } = usePage().props;
+type AppLogoProps = {
+    className?: string;
+    showWordmark?: boolean;
+    iconClassName?: string;
+};
 
+export default function AppLogo({
+    className,
+    showWordmark = true,
+    iconClassName,
+}: AppLogoProps) {
     return (
-        <>
-            <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-md">
-                <AppLogoIcon className="size-5 fill-current text-white dark:text-black" />
+        <div className={cn('flex items-center gap-2', className)}>
+            <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 shrink-0 items-center justify-center rounded-md">
+                <AppLogoIcon
+                    className={cn('size-5', iconClassName)}
+                />
             </div>
-            <div className="ml-1 grid flex-1 text-left text-sm">
-                <span className="mb-0.5 truncate leading-tight font-semibold">
-                    {name}
+            {showWordmark && (
+                <span className="truncate text-sm leading-tight font-semibold">
+                    Stumped
                 </span>
-            </div>
-        </>
+            )}
+        </div>
     );
 }

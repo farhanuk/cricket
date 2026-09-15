@@ -1,6 +1,5 @@
 import { Head, router } from '@inertiajs/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import MatchHomeButton from '@/components/match-home-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -1170,8 +1169,6 @@ export default function ScoringIndex(props: PageProps) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
-            <MatchHomeButton fixtureId={fixture.id} />
 
             <div className="mx-auto flex min-h-full w-full max-w-lg flex-col pb-6">
                 <div className="bg-background/95 sticky top-0 z-10 border-b px-4 py-4 backdrop-blur">

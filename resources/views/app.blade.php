@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @class(['dark' => ($appearance ?? 'system') == 'dark'])>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @class(['dark' => ($appearance ?? 'light') == 'dark'])>
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        {{-- Inline script to detect system dark mode preference and apply it immediately --}}
+        {{-- Apply stored appearance before paint (default: light) --}}
         <script>
             (function() {
-                const appearance = '{{ $appearance ?? "system" }}';
+                const appearance = '{{ $appearance ?? "light" }}';
 
                 if (appearance === 'system') {
                     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -15,6 +15,8 @@
                     if (prefersDark) {
                         document.documentElement.classList.add('dark');
                     }
+                } else if (appearance === 'dark') {
+                    document.documentElement.classList.add('dark');
                 }
             })();
         </script>
@@ -34,17 +36,17 @@
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="manifest" href="/build/manifest.webmanifest">
         <link rel="apple-touch-icon" href="/pwa-192x192.png">
-        <meta name="theme-color" content="#252525">
+        <meta name="theme-color" content="#202023">
         <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-title" content="DTS Cricket">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-title" content="Stumped">
+        <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
         @fonts
 
         @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
         <x-inertia::head>
-            <title>{{ config('app.name', 'Laravel') }}</title>
+            <title>{{ config('app.name', 'Stumped') }}</title>
         </x-inertia::head>
     </head>
     <body class="font-sans antialiased">

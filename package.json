@@ -10,7 +10,8 @@
         "check:fix": "vp check --fix",
         "types:check": "tsc --noEmit",
         "test:js": "vitest run",
-        "test:js:watch": "vitest"
+        "test:js:watch": "vitest",
+        "generate:icons": "node scripts/generate-pwa-icons.mjs"
     },
     "dependencies": {
         "@inertiajs/react": "^3.0.0",
@@ -52,6 +53,7 @@
         "@types/node": "^22.13.5",
         "babel-plugin-react-compiler": "^1.0.0",
         "happy-dom": "^20.14.5",
+        "sharp": "^0.35.4",
         "vite-plugin-pwa": "^1.3.0",
         "vite-plus": "0.3.0",
         "vitest": "^4.1.11"
