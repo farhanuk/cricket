@@ -51,12 +51,22 @@ type BowlingRow = {
     best: string;
 };
 
+type PairingRow = {
+    player_a: string;
+    player_b: string;
+    blocks_batted: number;
+    total_runs: number;
+    best_block: number;
+    average_per_block: number;
+};
+
 type PageProps = {
     season: Season;
     team: Team;
     teamRecord: TeamRecord;
     batting: BattingRow[];
     bowling: BowlingRow[];
+    pairings: PairingRow[];
 };
 
 export default function StatsIndex({
@@ -65,6 +75,7 @@ export default function StatsIndex({
     teamRecord,
     batting,
     bowling,
+    pairings,
 }: PageProps) {
     return (
         <>
@@ -192,6 +203,67 @@ export default function StatsIndex({
                                             </TableCell>
                                             <TableCell className="px-1 py-2 text-right text-xs">
                                                 {row.best}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
+                </div>
+
+                <div>
+                    <h2 className="mb-2 text-lg font-semibold">
+                        Batting pairings
+                    </h2>
+                    {pairings.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">
+                            No pairing stats yet — pairings appear once blocks
+                            are set during scoring.
+                        </p>
+                    ) : (
+                        <div className="overflow-x-auto rounded-xl border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="min-w-[5rem]">
+                                            Pairing
+                                        </TableHead>
+                                        <TableHead className="w-8 px-1 text-right">
+                                            Blocks
+                                        </TableHead>
+                                        <TableHead className="w-8 px-1 text-right">
+                                            Runs
+                                        </TableHead>
+                                        <TableHead className="w-8 px-1 text-right">
+                                            Best
+                                        </TableHead>
+                                        <TableHead className="w-8 px-1 text-right">
+                                            Avg
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {pairings.map((row) => (
+                                        <TableRow
+                                            key={`${row.player_a}-${row.player_b}`}
+                                        >
+                                            <TableCell className="px-2 py-2 text-xs font-medium">
+                                                {row.player_a} & {row.player_b}
+                                            </TableCell>
+                                            <TableCell className="px-1 py-2 text-right text-xs">
+                                                {row.blocks_batted}
+                                            </TableCell>
+                                            <TableCell className="px-1 py-2 text-right text-xs">
+                                                {row.total_runs}
+                                            </TableCell>
+                                            <TableCell className="px-1 py-2 text-right text-xs">
+                                                {row.best_block}
+                                            </TableCell>
+                                            <TableCell className="px-1 py-2 text-right text-xs">
+                                                {row.average_per_block.toFixed(
+                                                    1,
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     ))}

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\BattingBlock;
 use App\Models\Fixture;
 use App\Models\Innings;
 use App\Models\Player;
@@ -146,6 +147,81 @@ test('season batting aggregates runs and balls across fixtures with best single 
         ->and($batting[0]['best'])->toBe(10)
         ->and($batting[0]['fours'])->toBe(1)
         ->and($batting[0]['sixes'])->toBe(1);
+});
+
+test('pairing stats aggregate blocks and runs for the same pair across fixtures', function () {
+    [
+        'team' => $team,
+        'season' => $season,
+        'fixtureOne' => $fixtureOne,
+        'fixtureTwo' => $fixtureTwo,
+    ] = createSeasonWithFixtures();
+
+    $playerOne = Player::factory()->for($team)->create([
+        'name' => 'Sam Alpha',
+        'squad_number' => 1,
+    ]);
+
+    $playerTwo = Player::factory()->for($team)->create([
+        'name' => 'Sam Beta',
+        'squad_number' => 2,
+    ]);
+
+    $fixtureOne->update(['first_innings_team_id' => $team->id]);
+
+    $inningsOne = Innings::factory()->for($fixtureOne)->create([
+        'batting_team_id' => $team->id,
+        'sequence' => 1,
+    ]);
+
+    BattingBlock::query()->create([
+        'innings_id' => $inningsOne->id,
+        'block_number' => 1,
+        'player_a_id' => $playerOne->id,
+        'player_b_id' => $playerTwo->id,
+    ]);
+
+    statsScoringService()->record($inningsOne, [
+        'striker_id' => $playerOne->id,
+        'runs' => 6,
+    ]);
+    statsScoringService()->record($inningsOne, [
+        'striker_id' => $playerTwo->id,
+        'runs' => 4,
+    ]);
+
+    $fixtureTwo->update(['first_innings_team_id' => $team->id]);
+
+    $inningsTwo = Innings::factory()->for($fixtureTwo)->create([
+        'batting_team_id' => $team->id,
+        'sequence' => 1,
+    ]);
+
+    BattingBlock::query()->create([
+        'innings_id' => $inningsTwo->id,
+        'block_number' => 1,
+        'player_a_id' => $playerOne->id,
+        'player_b_id' => $playerTwo->id,
+    ]);
+
+    statsScoringService()->record($inningsTwo, [
+        'striker_id' => $playerOne->id,
+        'runs' => 2,
+    ]);
+    statsScoringService()->record($inningsTwo, [
+        'striker_id' => $playerTwo->id,
+        'runs' => 1,
+    ]);
+
+    $pairings = statsTestService()->pairingStats($season);
+
+    expect($pairings)->toHaveCount(1)
+        ->and($pairings[0]['player_a'])->toBe('1 Sam Alpha')
+        ->and($pairings[0]['player_b'])->toBe('2 Sam Beta')
+        ->and($pairings[0]['blocks_batted'])->toBe(2)
+        ->and($pairings[0]['total_runs'])->toBe(13)
+        ->and($pairings[0]['best_block'])->toBe(10)
+        ->and($pairings[0]['average_per_block'])->toBe(6.5);
 });
 
 test('team record counts a win and a tie from completed fixtures', function () {

@@ -23,6 +23,7 @@ class StatsController extends Controller
             'teamRecord' => $statsService->teamRecord($season),
             'batting' => $statsService->seasonBatting($season),
             'bowling' => $statsService->seasonBowling($season),
+            'pairings' => $statsService->pairingStats($season),
         ]);
     }
 }

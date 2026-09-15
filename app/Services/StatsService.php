@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Delivery;
 use App\Models\Innings;
+use App\Models\Player;
 use App\Models\Season;
 use RuntimeException;
 
@@ -315,6 +316,104 @@ class StatsService
     }
 
     /**
+     * @return list<array{
+     *     player_a: string,
+     *     player_b: string,
+     *     blocks_batted: int,
+     *     total_runs: int,
+     *     best_block: int,
+     *     average_per_block: float
+     * }>
+     */
+    public function pairingStats(Season $season): array
+    {
+        $season->loadMissing('team');
+        $teamId = $season->team_id;
+
+        /** @var array<string, array{player_a: string, player_b: string, blocks_batted: int, total_runs: int, best_block: int}> $byPair */
+        $byPair = [];
+
+        $inningsList = Innings::query()
+            ->whereHas('fixture', fn ($query) => $query->where('season_id', $season->id))
+            ->where('batting_team_id', $teamId)
+            ->with([
+                'fixture',
+                'battingBlocks.playerA',
+                'battingBlocks.playerB',
+                'deliveries',
+            ])
+            ->get();
+
+        foreach ($inningsList as $innings) {
+            $fixtureOvers = $innings->fixture->overs;
+
+            foreach ($innings->battingBlocks as $block) {
+                if ($block->player_a_id === null || $block->player_b_id === null) {
+                    continue;
+                }
+
+                [$startOver, $endOver] = $this->blockOverRange(
+                    $block->block_number,
+                    $fixtureOvers,
+                );
+
+                $blockRuns = 0;
+
+                foreach ($innings->deliveries as $delivery) {
+                    if ($delivery->over_no < $startOver || $delivery->over_no > $endOver) {
+                        continue;
+                    }
+
+                    $blockRuns += $delivery->runs;
+                }
+
+                $lowerId = min($block->player_a_id, $block->player_b_id);
+                $upperId = max($block->player_a_id, $block->player_b_id);
+                $key = "{$lowerId}:{$upperId}";
+
+                if (! isset($byPair[$key])) {
+                    $lowerPlayer = $block->player_a_id === $lowerId
+                        ? $block->playerA
+                        : $block->playerB;
+                    $upperPlayer = $block->player_b_id === $upperId
+                        ? $block->playerB
+                        : $block->playerA;
+
+                    $byPair[$key] = [
+                        'player_a' => $this->formatPlayerLabel($lowerPlayer),
+                        'player_b' => $this->formatPlayerLabel($upperPlayer),
+                        'blocks_batted' => 0,
+                        'total_runs' => 0,
+                        'best_block' => 0,
+                    ];
+                }
+
+                $byPair[$key]['blocks_batted']++;
+                $byPair[$key]['total_runs'] += $blockRuns;
+                $byPair[$key]['best_block'] = max(
+                    $byPair[$key]['best_block'],
+                    $blockRuns,
+                );
+            }
+        }
+
+        $rows = array_map(function (array $stats) {
+            $average = $stats['blocks_batted'] > 0
+                ? round($stats['total_runs'] / $stats['blocks_batted'], 1)
+                : 0.0;
+
+            return [
+                ...$stats,
+                'average_per_block' => $average,
+            ];
+        }, array_values($byPair));
+
+        usort($rows, fn (array $a, array $b) => $b['total_runs'] <=> $a['total_runs']);
+
+        return $rows;
+    }
+
+    /**
      * @return array{played: int, won: int, lost: int, tied: int}
      */
     public function teamRecord(Season $season): array
@@ -468,5 +567,28 @@ class StatsService
         return $partialBalls === 0
             ? (string) $completedOvers
             : "{$completedOvers}.{$partialBalls}";
+    }
+
+    /**
+     * @return array{0: int, 1: int}
+     */
+    protected function blockOverRange(int $blockNumber, int $fixtureOvers): array
+    {
+        $oversPerBlock = intdiv($fixtureOvers, 4);
+        $startOver = ($blockNumber - 1) * $oversPerBlock + 1;
+        $endOver = $blockNumber * $oversPerBlock;
+
+        return [$startOver, $endOver];
+    }
+
+    protected function formatPlayerLabel(?Player $player): string
+    {
+        if ($player === null) {
+            return 'Unknown';
+        }
+
+        $squadNumber = $player->squad_number;
+
+        return ($squadNumber !== null ? "{$squadNumber} " : '').$player->name;
     }
 }
