@@ -152,4 +152,16 @@ class FixtureController extends Controller
 
         return redirect()->route('fixtures.index');
     }
+
+    /**
+     * Delete a fixture and all related match data.
+     */
+    public function destroy(Fixture $fixture): RedirectResponse
+    {
+        $fixture->delete();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Fixture deleted.')]);
+
+        return redirect()->route('fixtures.index');
+    }
 }

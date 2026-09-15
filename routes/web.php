@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FixtureController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\PlayerController;
@@ -10,11 +11,15 @@ use Illuminate\Support\Facades\Route;
 Route::inertia('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('players', [PlayerController::class, 'index'])->name('players.index');
+    Route::post('players', [PlayerController::class, 'store'])->name('players.store');
+    Route::put('players/{player}', [PlayerController::class, 'update'])->name('players.update');
+    Route::delete('players/{player}', [PlayerController::class, 'destroy'])->name('players.destroy');
     Route::get('fixtures', [FixtureController::class, 'index'])->name('fixtures.index');
     Route::get('fixtures/create', [FixtureController::class, 'create'])->name('fixtures.create');
     Route::post('fixtures', [FixtureController::class, 'store'])->name('fixtures.store');
+    Route::delete('fixtures/{fixture}', [FixtureController::class, 'destroy'])->name('fixtures.destroy');
     Route::get('fixtures/{fixture}/selection', [FixtureController::class, 'selection'])->name('fixtures.selection');
     Route::post('fixtures/{fixture}/selection', [FixtureController::class, 'storeSelection'])->name('fixtures.selection.store');
     Route::get('fixtures/{fixture}/pairs', [FixtureController::class, 'pairs'])->name('fixtures.pairs');

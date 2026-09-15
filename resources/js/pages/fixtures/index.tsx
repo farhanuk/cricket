@@ -1,7 +1,17 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Spinner } from '@/components/ui/spinner';
 import {
     Table,
     TableBody,
@@ -89,9 +99,69 @@ function FixtureDate({
 }
 
 export default function FixturesIndex({ fixtures }: PageProps) {
+    const [deleteTarget, setDeleteTarget] = useState<Fixture | null>(null);
+    const [deleting, setDeleting] = useState(false);
+
+    const confirmDelete = () => {
+        if (deleteTarget === null) {
+            return;
+        }
+
+        setDeleting(true);
+
+        router.delete(`/fixtures/${deleteTarget.id}`, {
+            onFinish: () => {
+                setDeleting(false);
+                setDeleteTarget(null);
+            },
+        });
+    };
+
     return (
         <>
             <Head title="Fixtures" />
+
+            <Dialog
+                open={deleteTarget !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setDeleteTarget(null);
+                    }
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {deleteTarget
+                                ? `Delete match vs ${deleteTarget.opponent}?`
+                                : 'Delete match?'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            This deletes the match and its scorecard
+                            (selections, pairs, and all recorded balls). Your
+                            players are not affected.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setDeleteTarget(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            disabled={deleting}
+                            onClick={confirmDelete}
+                        >
+                            {deleting && <Spinner />}
+                            Delete match
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <div className="flex items-center justify-between gap-4">
@@ -121,31 +191,59 @@ export default function FixturesIndex({ fixtures }: PageProps) {
                                         <TableHead>Date</TableHead>
                                         <TableHead>Opponent</TableHead>
                                         <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">
+                                            Actions
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {fixtures.map((fixture) => (
-                                        <TableRow
-                                            key={fixture.id}
-                                            className="hover:bg-muted/50 cursor-pointer"
-                                            onClick={() =>
-                                                router.visit(
-                                                    `/fixtures/${fixture.id}/match`,
-                                                )
-                                            }
-                                        >
-                                            <TableCell>
+                                        <TableRow key={fixture.id}>
+                                            <TableCell
+                                                className="hover:bg-muted/50 cursor-pointer"
+                                                onClick={() =>
+                                                    router.visit(
+                                                        `/fixtures/${fixture.id}/match`,
+                                                    )
+                                                }
+                                            >
                                                 <FixtureDate
                                                     playedAt={fixture.played_at}
                                                 />
                                             </TableCell>
-                                            <TableCell className="font-medium">
+                                            <TableCell
+                                                className="hover:bg-muted/50 cursor-pointer font-medium"
+                                                onClick={() =>
+                                                    router.visit(
+                                                        `/fixtures/${fixture.id}/match`,
+                                                    )
+                                                }
+                                            >
                                                 {fixture.opponent}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell
+                                                className="hover:bg-muted/50 cursor-pointer"
+                                                onClick={() =>
+                                                    router.visit(
+                                                        `/fixtures/${fixture.id}/match`,
+                                                    )
+                                                }
+                                            >
                                                 <FixtureStatusBadge
                                                     playedAt={fixture.played_at}
                                                 />
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        setDeleteTarget(fixture)
+                                                    }
+                                                >
+                                                    Delete
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -155,26 +253,40 @@ export default function FixturesIndex({ fixtures }: PageProps) {
 
                         <div className="space-y-3 sm:hidden">
                             {fixtures.map((fixture) => (
-                                <Link
+                                <div
                                     key={fixture.id}
-                                    href={`/fixtures/${fixture.id}/match`}
-                                    className="border-sidebar-border/70 dark:border-sidebar-border hover:bg-muted/50 block rounded-xl border p-4 transition-colors"
+                                    className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4"
                                 >
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-base font-semibold">
-                                                {fixture.opponent}
-                                            </p>
-                                            <FixtureDate
+                                    <Link
+                                        href={`/fixtures/${fixture.id}/match`}
+                                        className="hover:bg-muted/50 block rounded-lg transition-colors"
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate text-base font-semibold">
+                                                    {fixture.opponent}
+                                                </p>
+                                                <FixtureDate
+                                                    playedAt={fixture.played_at}
+                                                    className="mt-1 block text-sm"
+                                                />
+                                            </div>
+                                            <FixtureStatusBadge
                                                 playedAt={fixture.played_at}
-                                                className="mt-1 block text-sm"
                                             />
                                         </div>
-                                        <FixtureStatusBadge
-                                            playedAt={fixture.played_at}
-                                        />
-                                    </div>
-                                </Link>
+                                    </Link>
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        className="mt-3 min-h-11 w-full"
+                                        onClick={() =>
+                                            setDeleteTarget(fixture)
+                                        }
+                                    >
+                                        Delete match
+                                    </Button>
+                                </div>
                             ))}
                         </div>
                     </>

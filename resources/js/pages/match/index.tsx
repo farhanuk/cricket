@@ -1,7 +1,17 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Spinner } from '@/components/ui/spinner';
 import {
     Card,
     CardContent,
@@ -85,8 +95,22 @@ export default function MatchIndex({
     result,
     match_started,
 }: PageProps) {
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
     const startMatch = (batsFirst: 'us' | 'them') => {
         router.post(`/fixtures/${fixture.id}/score`, { bats_first: batsFirst });
+    };
+
+    const confirmDelete = () => {
+        setDeleting(true);
+
+        router.delete(`/fixtures/${fixture.id}`, {
+            onFinish: () => {
+                setDeleting(false);
+                setDeleteOpen(false);
+            },
+        });
     };
 
     const bothComplete =
@@ -96,8 +120,51 @@ export default function MatchIndex({
         <>
             <Head title={`Match vs ${fixture.opponent}`} />
 
+            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            Delete match vs {fixture.opponent}?
+                        </DialogTitle>
+                        <DialogDescription>
+                            This deletes the match and its scorecard
+                            (selections, pairs, and all recorded balls). Your
+                            players are not affected.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setDeleteOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            disabled={deleting}
+                            onClick={confirmDelete}
+                        >
+                            {deleting && <Spinner />}
+                            Delete match
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <Heading title={`vs ${fixture.opponent}`} />
+                <div className="flex items-start justify-between gap-4">
+                    <Heading title={`vs ${fixture.opponent}`} />
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setDeleteOpen(true)}
+                    >
+                        Delete
+                    </Button>
+                </div>
 
                 <div className="border-sidebar-border/70 dark:border-sidebar-border flex flex-wrap gap-2 rounded-xl border p-3">
                     <Button variant="secondary" size="sm" asChild>
