@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import AppLogo from '@/components/app-logo';
+import { Card, CardContent } from '@/components/ui/card';
 import { home } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
 
@@ -8,25 +9,39 @@ export default function AuthSimpleLayout({
     title,
     description,
 }: AuthLayoutProps) {
-    return (
-        <div className="bg-background flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-            <div className="w-full max-w-sm">
-                <div className="flex flex-col gap-8">
-                    <div className="flex flex-col items-center gap-4">
-                        <Link href={home()} className="font-medium">
-                            <AppLogo className="flex-col gap-2 sm:flex-row" />
-                            <span className="sr-only">{title}</span>
-                        </Link>
+    const showHeading =
+        (title !== undefined && title !== '') ||
+        (description !== undefined && description !== '');
 
-                        <div className="space-y-2 text-center">
-                            <h1 className="text-xl font-medium">{title}</h1>
-                            <p className="text-muted-foreground text-center text-sm">
-                                {description}
-                            </p>
-                        </div>
-                    </div>
-                    {children}
-                </div>
+    return (
+        <div className="bg-muted/30 flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
+            <div className="flex w-full max-w-sm flex-col gap-8">
+                <Link
+                    href={home()}
+                    className="flex justify-center font-medium"
+                >
+                    <AppLogo className="flex-col gap-3 sm:flex-row" />
+                </Link>
+
+                <Card className="border-border/80 shadow-sm">
+                    <CardContent className="space-y-6 pt-8 pb-8">
+                        {showHeading && (
+                            <div className="space-y-2 text-center">
+                                {title ? (
+                                    <h1 className="text-xl font-semibold tracking-tight">
+                                        {title}
+                                    </h1>
+                                ) : null}
+                                {description ? (
+                                    <p className="text-muted-foreground text-sm text-balance">
+                                        {description}
+                                    </p>
+                                ) : null}
+                            </div>
+                        )}
+                        {children}
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );
