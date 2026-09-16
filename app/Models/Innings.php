@@ -78,6 +78,12 @@ class Innings extends Model
     {
         $this->loadMissing('fixture.season');
 
-        return $this->batting_team_id === $this->fixture->season->team_id;
+        if ($this->batting_team_id === null) {
+            return false;
+        }
+
+        $teamId = $this->fixture->season?->team_id;
+
+        return $teamId !== null && $this->batting_team_id === $teamId;
     }
 }

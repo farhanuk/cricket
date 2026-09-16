@@ -271,10 +271,12 @@ class ScoringService
             }
         }
 
-        $teamId = $fixture->season->team_id;
+        if ($fixture->season === null) {
+            throw new RuntimeException('Fixture season is required to calculate a result.');
+        }
 
-        $ourInnings = $innings->first(fn (Innings $entry) => $entry->batting_team_id === $teamId);
-        $oppInnings = $innings->first(fn (Innings $entry) => $entry->batting_team_id === null);
+        $ourInnings = $innings->first(fn (Innings $entry) => $entry->isOurs());
+        $oppInnings = $innings->first(fn (Innings $entry) => ! $entry->isOurs());
 
         if ($ourInnings === null || $oppInnings === null) {
             throw new RuntimeException('Could not identify our and opposition innings.');
