@@ -1,9 +1,10 @@
 import { Link } from '@inertiajs/react';
-import { BarChart3, Calendar, LayoutGrid } from 'lucide-react';
+import { BarChart3, Calendar, LayoutGrid, Users } from 'lucide-react';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { index as fixturesIndex } from '@/routes/fixtures';
+import { index as playersIndex } from '@/routes/players';
 
 const navItems = [
     {
@@ -12,6 +13,13 @@ const navItems = [
         icon: LayoutGrid,
         startsWith: false,
         alsoHome: true,
+    },
+    {
+        title: 'Players',
+        href: playersIndex(),
+        icon: Users,
+        startsWith: true,
+        alsoHome: false,
     },
     {
         title: 'Fixtures',
@@ -37,7 +45,7 @@ export function MobileBottomNav() {
             className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/80 fixed inset-x-0 bottom-0 z-50 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
             aria-label="Main navigation"
         >
-            <div className="mx-auto grid max-w-lg grid-cols-3">
+            <div className="mx-auto grid max-w-lg grid-cols-4">
                 {navItems.map((item) => {
                     const active =
                         isCurrentUrl(item.href, currentUrl, item.startsWith) ||
@@ -50,7 +58,7 @@ export function MobileBottomNav() {
                             href={item.href}
                             prefetch
                             className={cn(
-                                'flex min-h-14 flex-col items-center justify-center gap-0.5 px-2 py-2 text-xs font-medium transition-colors',
+                                'flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[11px] font-medium transition-colors sm:text-xs',
                                 active
                                     ? 'text-primary'
                                     : 'text-muted-foreground hover:text-foreground',
@@ -63,7 +71,7 @@ export function MobileBottomNav() {
                                 )}
                                 aria-hidden
                             />
-                            <span>{item.title}</span>
+                            <span className="truncate">{item.title}</span>
                         </Link>
                     );
                 })}
