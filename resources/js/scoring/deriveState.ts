@@ -1,4 +1,9 @@
-import type { Delivery, DerivedState, FixtureConfig, InningsType } from './types';
+import type {
+    Delivery,
+    DerivedState,
+    FixtureConfig,
+    InningsType,
+} from './types';
 
 // Single pass: walk deliveries once, tracking the running count of
 // deliveries that count toward the over. A delivery counts UNLESS it is a
@@ -46,12 +51,13 @@ export function deriveState(
         balls_bowled_this_over: countingSoFar % fixture.balls_per_over,
         balls_per_over: fixture.balls_per_over,
         is_last_over: overNo === fixture.overs,
-        total_runs: deliveries.reduce((sum, delivery) => sum + delivery.runs, 0),
+        total_runs: deliveries.reduce(
+            (sum, delivery) => sum + delivery.runs,
+            0,
+        ),
         wickets: deliveries.filter((delivery) => delivery.is_out).length,
         balls_remaining: Math.max(0, legalBallLimit - countingSoFar),
         current_block_number:
-            inningsType === 'ours'
-                ? blockNumberForOver(fixture, overNo)
-                : null,
+            inningsType === 'ours' ? blockNumberForOver(fixture, overNo) : null,
     };
 }

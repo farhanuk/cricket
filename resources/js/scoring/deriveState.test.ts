@@ -36,9 +36,7 @@ describe('deriveState', () => {
     });
 
     it('counts a wide in over 1 toward the over', () => {
-        const deliveries = [
-            delivery(0, { runs: 1, extra_type: 'wide' }),
-        ];
+        const deliveries = [delivery(0, { runs: 1, extra_type: 'wide' })];
 
         expect(countingDeliveriesFromList(deliveries, fixture)).toBe(1);
 

@@ -89,9 +89,7 @@ export default function FixturesSelection({
                                     onClick={() => togglePlayer(player.id)}
                                     className="hover:bg-muted/50 flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors"
                                 >
-                                    <span>
-                                        {player.name}
-                                    </span>
+                                    <span>{player.name}</span>
                                     <Checkbox
                                         checked={selected}
                                         className="pointer-events-none"

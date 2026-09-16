@@ -16,10 +16,7 @@ export default function AuthSplitLayout({
                     href={home()}
                     className="relative z-20 flex items-center text-lg font-medium text-white"
                 >
-                    <AppLogo
-                        className="gap-2.5"
-                        iconClassName="text-white"
-                    />
+                    <AppLogo className="gap-2.5" iconClassName="text-white" />
                 </Link>
             </div>
             <div className="w-full lg:p-8">

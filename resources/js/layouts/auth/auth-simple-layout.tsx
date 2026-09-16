@@ -16,10 +16,7 @@ export default function AuthSimpleLayout({
     return (
         <div className="bg-muted/30 flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
             <div className="flex w-full max-w-sm flex-col gap-8">
-                <Link
-                    href={home()}
-                    className="flex justify-center font-medium"
-                >
+                <Link href={home()} className="flex justify-center font-medium">
                     <AppLogo className="flex-col gap-3 sm:flex-row" />
                 </Link>
 

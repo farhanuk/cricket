@@ -37,10 +37,7 @@ import {
     type OverStripDelivery,
 } from '@/scoring/clientFigures';
 import { generateClientUuid } from '@/scoring/deliveryLog';
-import {
-    countingDeliveriesFromList,
-    deriveState,
-} from '@/scoring/deriveState';
+import { countingDeliveriesFromList, deriveState } from '@/scoring/deriveState';
 import { createSyncQueue } from '@/scoring/syncQueue';
 import type {
     BattingBlockMap,
@@ -168,10 +165,7 @@ function serverBlocksToMap(blocks: ServerBattingBlock[]): BattingBlockMap {
     const map: BattingBlockMap = {};
 
     for (const block of blocks) {
-        if (
-            block.player_a_id !== null &&
-            block.player_b_id !== null
-        ) {
+        if (block.player_a_id !== null && block.player_b_id !== null) {
             map[block.block_number] = {
                 player_a_id: block.player_a_id,
                 player_b_id: block.player_b_id,
@@ -215,8 +209,7 @@ function playersForBlock(
 
     return selectedPlayers.filter(
         (player) =>
-            player.id === block.player_a_id ||
-            player.id === block.player_b_id,
+            player.id === block.player_a_id || player.id === block.player_b_id,
     );
 }
 
@@ -813,10 +806,7 @@ export default function ScoringIndex(props: PageProps) {
             return currentOverBowlerIdValue;
         }
 
-        if (
-            bowlerId !== null &&
-            bowlerChosenOverNo === state.over_no
-        ) {
+        if (bowlerId !== null && bowlerChosenOverNo === state.over_no) {
             return bowlerId;
         }
 
@@ -1022,8 +1012,7 @@ export default function ScoringIndex(props: PageProps) {
             );
         } else if (failedAction.action.type === 'store_block') {
             const blocks = { ...sync.readBlocks() };
-            const blockNumber =
-                failedAction.action.payload?.block_number;
+            const blockNumber = failedAction.action.payload?.block_number;
 
             if (blockNumber !== undefined) {
                 delete blocks[blockNumber];
@@ -1329,9 +1318,7 @@ export default function ScoringIndex(props: PageProps) {
                                         key={player.id}
                                         type="button"
                                         disabled={inputsLocked}
-                                        onClick={() =>
-                                            setStrikerId(player.id)
-                                        }
+                                        onClick={() => setStrikerId(player.id)}
                                         className={cn(
                                             'min-h-20 rounded-xl border-2 px-4 py-4 text-left transition-colors',
                                             strikerId === player.id
@@ -1591,7 +1578,6 @@ export default function ScoringIndex(props: PageProps) {
                                     </div>
                                 )}
                             </div>
-
                         </>
                     ) : (
                         <div>

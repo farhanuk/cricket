@@ -1,10 +1,5 @@
 import { deriveState } from './deriveState';
-import type {
-    BattingBlockMap,
-    Delivery,
-    FixtureConfig,
-    Player,
-} from './types';
+import type { BattingBlockMap, Delivery, FixtureConfig, Player } from './types';
 
 export type OverStripDelivery = {
     key: string;
@@ -364,4 +359,3 @@ export function bowlingFiguresFromLog(
             };
         });
 }
-
