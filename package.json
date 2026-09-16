@@ -11,7 +11,11 @@
         "types:check": "tsc --noEmit",
         "test:js": "vitest run",
         "test:js:watch": "vitest",
-        "generate:icons": "node scripts/generate-pwa-icons.mjs"
+        "generate:icons": "node scripts/generate-pwa-icons.mjs",
+        "prepare": "husky"
+    },
+    "lint-staged": {
+        "*.{ts,tsx,js,jsx,css}": "vp check --fix"
     },
     "dependencies": {
         "@inertiajs/react": "^3.0.0",
@@ -48,6 +52,8 @@
         "vite": "^8.0.0"
     },
     "devDependencies": {
+        "husky": "^9.1.7",
+        "lint-staged": "^15.5.0",
         "@laravel/vite-plugin-wayfinder": "^0.1.3",
         "@rolldown/plugin-babel": "^0.2.3",
         "@types/node": "^22.13.5",
