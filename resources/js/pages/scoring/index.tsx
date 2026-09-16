@@ -1,4 +1,5 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { Pencil } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -455,6 +456,7 @@ export default function ScoringIndex(props: PageProps) {
         isOurs ? seedBlocks(sync, props.battingBlocks) : {},
     );
     const [blockPickIds, setBlockPickIds] = useState<number[]>([]);
+    const [blockEditOpen, setBlockEditOpen] = useState(false);
     const [isComplete, setIsComplete] = useState(props.state.is_complete);
     const [pendingCount, setPendingCount] = useState(
         () => sync.pending().length,
@@ -737,8 +739,18 @@ export default function ScoringIndex(props: PageProps) {
         (player) => !usedInOtherBlocks.has(player.id),
     );
 
+    const canPickBlockPair = availableForBlock.length >= 2;
+
     const blockRequiredActive =
         isOurs && !state.is_complete && currentBlockEntry === undefined;
+
+    const blockSelectionOpen = blockRequiredActive || blockEditOpen;
+
+    const showEditBatsmenControl =
+        isOurs &&
+        !state.is_complete &&
+        currentBlockEntry !== undefined &&
+        !blockRequiredActive;
 
     const blockCheckpointActive =
         isOurs &&
@@ -790,8 +802,21 @@ export default function ScoringIndex(props: PageProps) {
 
         refreshFromSync();
         setBlockPickIds([]);
+        setBlockEditOpen(false);
         setStrikerId(null);
         void runFlush();
+    };
+
+    const openBlockEdit = () => {
+        if (currentBlockEntry === undefined) {
+            return;
+        }
+
+        setBlockPickIds([
+            currentBlockEntry.player_a_id,
+            currentBlockEntry.player_b_id,
+        ]);
+        setBlockEditOpen(true);
     };
 
     const blockPlayerIds = currentBlockPlayers.map((player) => player.id);
@@ -1094,18 +1119,43 @@ export default function ScoringIndex(props: PageProps) {
     useEffect(() => {
         if (blockRequiredActive) {
             setBlockPickIds([]);
+            setBlockEditOpen(false);
         }
     }, [currentBlockNumber, blockRequiredActive]);
+
+    useEffect(() => {
+        setBlockEditOpen(false);
+    }, [currentBlockNumber]);
 
     return (
         <>
             <Head title={`Score vs ${fixture.opponent}`} />
 
-            <Dialog open={blockRequiredActive}>
+            <Dialog
+                open={blockSelectionOpen}
+                onOpenChange={(open) => {
+                    if (!open && !blockRequiredActive) {
+                        setBlockEditOpen(false);
+                        setBlockPickIds([]);
+                    }
+                }}
+            >
                 <DialogContent
-                    className="[&>button.absolute]:hidden"
-                    onInteractOutside={(event) => event.preventDefault()}
-                    onEscapeKeyDown={(event) => event.preventDefault()}
+                    className={
+                        blockRequiredActive
+                            ? '[&>button.absolute]:hidden'
+                            : undefined
+                    }
+                    onInteractOutside={(event) => {
+                        if (blockRequiredActive) {
+                            event.preventDefault();
+                        }
+                    }}
+                    onEscapeKeyDown={(event) => {
+                        if (blockRequiredActive) {
+                            event.preventDefault();
+                        }
+                    }}
                 >
                     <DialogHeader>
                         <DialogTitle>
@@ -1116,32 +1166,67 @@ export default function ScoringIndex(props: PageProps) {
                             available. Each player bats one block only.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-2">
-                        {availableForBlock.map((player) => (
-                            <button
-                                key={player.id}
-                                type="button"
-                                onClick={() => toggleBlockPick(player.id)}
-                                className={cn(
-                                    'min-h-12 rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors',
-                                    blockPickIds.includes(player.id)
-                                        ? 'border-primary bg-primary text-primary-foreground'
-                                        : 'border-input hover:bg-muted',
-                                )}
-                            >
-                                {player.name}
-                            </button>
-                        ))}
-                    </div>
+                    {canPickBlockPair ? (
+                        <div className="grid gap-2">
+                            {availableForBlock.map((player) => (
+                                <button
+                                    key={player.id}
+                                    type="button"
+                                    onClick={() => toggleBlockPick(player.id)}
+                                    className={cn(
+                                        'min-h-12 rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors',
+                                        blockPickIds.includes(player.id)
+                                            ? 'border-primary bg-primary text-primary-foreground'
+                                            : 'border-input hover:bg-muted',
+                                    )}
+                                >
+                                    {player.name}
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-muted-foreground text-sm">
+                            No players selected for this match yet.
+                        </p>
+                    )}
                     <DialogFooter className="gap-2 sm:gap-2">
-                        <Button
-                            type="button"
-                            className="min-h-12 w-full"
-                            disabled={blockPickIds.length !== 2}
-                            onClick={confirmBlockSelection}
-                        >
-                            Start block
-                        </Button>
+                        {!blockRequiredActive && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="min-h-12 flex-1"
+                                onClick={() => {
+                                    setBlockEditOpen(false);
+                                    setBlockPickIds([]);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                        )}
+                        {canPickBlockPair ? (
+                            <Button
+                                type="button"
+                                className="min-h-12 flex-1"
+                                disabled={blockPickIds.length !== 2}
+                                onClick={confirmBlockSelection}
+                            >
+                                {blockRequiredActive
+                                    ? 'Start block'
+                                    : 'Save batsmen'}
+                            </Button>
+                        ) : (
+                            <Button
+                                type="button"
+                                className="min-h-12 w-full"
+                                asChild
+                            >
+                                <Link
+                                    href={`/fixtures/${fixture.id}/selection`}
+                                >
+                                    Select squad
+                                </Link>
+                            </Button>
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -1299,43 +1384,69 @@ export default function ScoringIndex(props: PageProps) {
 
                 <div className="flex flex-col gap-4 px-4 pt-4">
                     {isOurs && currentBlockPlayers.length >= 2 && (
-                        <div
-                            className={cn(
-                                'space-y-3 rounded-xl border p-4',
-                                strikerPickRequired
-                                    ? 'border-primary/50 bg-primary/5'
-                                    : 'border-transparent p-0',
-                            )}
-                        >
-                            {strikerPickRequired && (
-                                <p className="text-center text-base font-semibold">
-                                    Select the striker for this ball
-                                </p>
-                            )}
-                            <div className="grid grid-cols-2 gap-3">
-                                {currentBlockPlayers.map((player) => (
-                                    <button
-                                        key={player.id}
+                        <div className="space-y-1.5">
+                            {showEditBatsmenControl && (
+                                <div className="flex justify-end">
+                                    <Button
                                         type="button"
-                                        disabled={inputsLocked}
-                                        onClick={() => setStrikerId(player.id)}
-                                        className={cn(
-                                            'min-h-20 rounded-xl border-2 px-4 py-4 text-left transition-colors',
-                                            strikerId === player.id
-                                                ? 'border-primary bg-primary text-primary-foreground shadow-md'
-                                                : 'border-input bg-background hover:bg-muted',
-                                            strikerPickRequired &&
-                                                strikerId !== player.id &&
-                                                'border-primary/30',
-                                            inputsLocked &&
-                                                'cursor-not-allowed opacity-50',
-                                        )}
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-muted-foreground hover:text-foreground size-8"
+                                        onClick={openBlockEdit}
+                                        aria-label="Edit batsmen"
                                     >
-                                        <span className="block text-lg font-bold">
-                                            {player.name}
-                                        </span>
-                                    </button>
-                                ))}
+                                        <Pencil className="size-4" />
+                                    </Button>
+                                </div>
+                            )}
+                            <div
+                                className={cn(
+                                    'space-y-2 rounded-xl border p-3',
+                                    strikerPickRequired
+                                        ? 'border-primary/50 bg-primary/5'
+                                        : 'border-transparent p-0',
+                                )}
+                            >
+                                {strikerPickRequired && (
+                                    <p className="text-center text-sm font-semibold">
+                                        Select the striker for this ball
+                                    </p>
+                                )}
+                                <div className="grid grid-cols-2 gap-2">
+                                    {currentBlockPlayers.map((player) => {
+                                        const isStriker =
+                                            strikerId === player.id;
+
+                                        return (
+                                            <button
+                                                key={player.id}
+                                                type="button"
+                                                disabled={inputsLocked}
+                                                onClick={() =>
+                                                    setStrikerId(player.id)
+                                                }
+                                                className={cn(
+                                                    'min-h-12 rounded-xl border-2 px-3 py-2.5 text-left transition-colors',
+                                                    isStriker
+                                                        ? 'text-foreground border-green-600/50 bg-green-500/10 dark:border-green-500/40 dark:bg-green-500/15'
+                                                        : 'border-input bg-background hover:bg-muted',
+                                                    strikerPickRequired &&
+                                                        !isStriker &&
+                                                        'border-muted-foreground/20',
+                                                    inputsLocked &&
+                                                        'cursor-not-allowed opacity-50',
+                                                )}
+                                            >
+                                                <span className="flex items-center gap-1.5 text-base font-semibold">
+                                                    {isStriker && (
+                                                        <CricketBatIcon className="size-3.5 shrink-0" />
+                                                    )}
+                                                    {player.name}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
                     )}

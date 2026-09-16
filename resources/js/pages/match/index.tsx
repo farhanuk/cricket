@@ -58,6 +58,7 @@ type PageProps = {
     innings: InningsSummary[];
     result: MatchResult | null;
     match_started: boolean;
+    selected_players_count: number;
 };
 
 function inningsActionLabel(innings: InningsSummary): string {
@@ -94,7 +95,11 @@ export default function MatchIndex({
     innings,
     result,
     match_started,
+    selected_players_count,
 }: PageProps) {
+    const squadReady = selected_players_count >= 2;
+    const selectionHref = `/fixtures/${fixture.id}/selection`;
+
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
@@ -189,13 +194,27 @@ export default function MatchIndex({
                                 Who bats first?
                             </p>
                             <div className="grid gap-3 sm:grid-cols-2">
-                                <Button
-                                    type="button"
-                                    className="min-h-12"
-                                    onClick={() => startMatch('us')}
-                                >
-                                    {team.name}
-                                </Button>
+                                <div className="space-y-2">
+                                    <Button
+                                        type="button"
+                                        className="min-h-12 w-full"
+                                        disabled={!squadReady}
+                                        onClick={() => startMatch('us')}
+                                    >
+                                        {team.name}
+                                    </Button>
+                                    {!squadReady && (
+                                        <p className="text-muted-foreground text-center text-xs">
+                                            Select squad first —{' '}
+                                            <Link
+                                                href={selectionHref}
+                                                className="text-primary underline underline-offset-4"
+                                            >
+                                                Select players
+                                            </Link>
+                                        </p>
+                                    )}
+                                </div>
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -258,14 +277,37 @@ export default function MatchIndex({
                                             {entry.total_runs}/{entry.wickets}
                                         </p>
                                     </CardContent>
-                                    <CardFooter>
-                                        <Button asChild className="w-full">
-                                            <Link
-                                                href={`/innings/${entry.id}/score`}
-                                            >
-                                                {inningsActionLabel(entry)}
-                                            </Link>
-                                        </Button>
+                                    <CardFooter className="flex flex-col gap-2">
+                                        {entry.is_ours &&
+                                        !squadReady &&
+                                        !entry.is_complete ? (
+                                            <>
+                                                <Button
+                                                    type="button"
+                                                    className="w-full"
+                                                    disabled
+                                                >
+                                                    {inningsActionLabel(entry)}
+                                                </Button>
+                                                <p className="text-muted-foreground text-center text-xs">
+                                                    Select squad first —{' '}
+                                                    <Link
+                                                        href={selectionHref}
+                                                        className="text-primary underline underline-offset-4"
+                                                    >
+                                                        Select players
+                                                    </Link>
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <Button asChild className="w-full">
+                                                <Link
+                                                    href={`/innings/${entry.id}/score`}
+                                                >
+                                                    {inningsActionLabel(entry)}
+                                                </Link>
+                                            </Button>
+                                        )}
                                     </CardFooter>
                                 </Card>
                             ))}

@@ -18,6 +18,7 @@ class MatchController extends Controller
     {
         $fixture->load(['season.team', 'innings' => fn ($query) => $query->orderBy('sequence')]);
 
+        $selectedPlayersCount = $fixture->selections()->count();
         $team = $fixture->season->team;
 
         $inningsSummaries = $fixture->innings->map(function ($innings) use ($fixture, $team, $scoringService) {
@@ -56,6 +57,7 @@ class MatchController extends Controller
             'innings' => $inningsSummaries,
             'result' => $result,
             'match_started' => $fixture->innings()->exists(),
+            'selected_players_count' => $selectedPlayersCount,
         ]);
     }
 
