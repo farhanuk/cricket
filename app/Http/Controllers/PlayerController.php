@@ -20,7 +20,7 @@ class PlayerController extends Controller
     public function index(): Response
     {
         return Inertia::render('players/index', [
-            'players' => Player::orderBy('squad_number')->get(['id', 'name', 'squad_number', 'active']),
+            'players' => Player::orderBy('name')->get(['id', 'name', 'squad_number', 'active']),
         ]);
     }
 

@@ -42,7 +42,7 @@ export function MobileBottomNav() {
 
     return (
         <nav
-            className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/80 fixed inset-x-0 bottom-0 z-50 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+            className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/80 fixed inset-x-0 bottom-0 z-50 border-t pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] backdrop-blur md:hidden"
             aria-label="Main navigation"
         >
             <div className="mx-auto grid max-w-lg grid-cols-4">

@@ -1,4 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -339,48 +340,48 @@ export default function PlayersIndex({ players }: PageProps) {
                             {players.map((player) => (
                                 <div
                                     key={player.id}
-                                    className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4"
+                                    className="border-sidebar-border/70 dark:border-sidebar-border flex items-center gap-2 rounded-xl border p-3"
                                 >
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                            <p className="text-base font-semibold">
-                                                {player.name}
-                                            </p>
-                                            <p className="text-muted-foreground mt-1 text-sm">
-                                                Squad #
-                                                {player.squad_number ?? '—'}
-                                            </p>
-                                        </div>
-                                        <Badge
-                                            variant={
-                                                player.active
-                                                    ? 'default'
-                                                    : 'secondary'
-                                            }
-                                        >
-                                            {player.active
-                                                ? 'Active'
-                                                : 'Inactive'}
-                                        </Badge>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-base font-semibold">
+                                            {player.name}
+                                        </p>
+                                        <p className="text-muted-foreground text-sm">
+                                            Squad #{player.squad_number ?? '—'}
+                                        </p>
                                     </div>
-                                    <div className="mt-4 grid grid-cols-2 gap-2">
+                                    <Badge
+                                        variant={
+                                            player.active
+                                                ? 'default'
+                                                : 'secondary'
+                                        }
+                                        className="shrink-0"
+                                    >
+                                        {player.active ? 'Active' : 'Inactive'}
+                                    </Badge>
+                                    <div className="flex shrink-0 items-center">
                                         <Button
                                             type="button"
-                                            variant="outline"
-                                            className="min-h-11"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="size-9"
                                             onClick={() => openEdit(player)}
+                                            aria-label={`Edit ${player.name}`}
                                         >
-                                            Edit
+                                            <Pencil className="size-4" />
                                         </Button>
                                         <Button
                                             type="button"
-                                            variant="destructive"
-                                            className="min-h-11"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="text-destructive hover:text-destructive size-9"
                                             onClick={() =>
                                                 setDeleteTarget(player)
                                             }
+                                            aria-label={`Delete ${player.name}`}
                                         >
-                                            Delete
+                                            <Trash2 className="size-4" />
                                         </Button>
                                     </div>
                                 </div>
