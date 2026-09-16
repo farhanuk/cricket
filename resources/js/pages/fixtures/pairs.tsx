@@ -66,7 +66,7 @@ function buildInitialPairs(pairs: ExistingPair[]): PairSlot[] {
 }
 
 function formatPlayerLabel(player: Player): string {
-    return `${player.squad_number ?? '—'} ${player.name}`;
+    return player.name;
 }
 
 function getAllSelectedIds(pairs: PairSlot[]): number[] {

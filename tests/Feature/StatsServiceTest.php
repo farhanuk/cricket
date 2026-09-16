@@ -90,7 +90,7 @@ test('batting card matches net runs including out deductions', function () {
     $card = statsTestService()->battingCard($innings);
 
     expect($card)->toHaveCount(1)
-        ->and($card[0]['player'])->toBe('7 Alex Batter')
+        ->and($card[0]['player'])->toBe('Alex Batter')
         ->and($card[0]['runs'])->toBe(5)
         ->and($card[0]['balls'])->toBe(3)
         ->and($card[0]['fours'])->toBe(1)
@@ -216,8 +216,8 @@ test('pairing stats aggregate blocks and runs for the same pair across fixtures'
     $pairings = statsTestService()->pairingStats($season);
 
     expect($pairings)->toHaveCount(1)
-        ->and($pairings[0]['player_a'])->toBe('1 Sam Alpha')
-        ->and($pairings[0]['player_b'])->toBe('2 Sam Beta')
+        ->and($pairings[0]['player_a'])->toBe('Sam Alpha')
+        ->and($pairings[0]['player_b'])->toBe('Sam Beta')
         ->and($pairings[0]['blocks_batted'])->toBe(2)
         ->and($pairings[0]['total_runs'])->toBe(13)
         ->and($pairings[0]['best_block'])->toBe(10)

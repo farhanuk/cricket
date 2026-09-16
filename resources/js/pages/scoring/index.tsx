@@ -37,7 +37,10 @@ import {
     type OverStripDelivery,
 } from '@/scoring/clientFigures';
 import { generateClientUuid } from '@/scoring/deliveryLog';
-import { deriveState } from '@/scoring/deriveState';
+import {
+    countingDeliveriesFromList,
+    deriveState,
+} from '@/scoring/deriveState';
 import { createSyncQueue } from '@/scoring/syncQueue';
 import type {
     BattingBlockMap,
@@ -349,32 +352,91 @@ function SyncIndicator({
             <button
                 type="button"
                 onClick={onReview}
-                className="mt-2 w-full rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-left text-sm text-red-700 dark:text-red-300"
+                className="inline-flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-700 dark:text-red-300"
             >
-                A ball couldn&apos;t be saved — tap to review
+                <span className="size-1.5 shrink-0 rounded-full bg-red-500" />
+                Sync error
             </button>
         );
     }
 
+    const inFlight = pendingCount > 0 || isFlushing;
     let label = 'Synced';
 
     if (!isOnline && pendingCount > 0) {
-        label = `Offline — ${pendingCount} pending`;
-    } else if (pendingCount > 0 || isFlushing) {
-        label = `Saving… (${pendingCount})`;
+        label = `Offline (${pendingCount})`;
+    } else if (inFlight) {
+        label = pendingCount > 0 ? `Saving (${pendingCount})` : 'Saving…';
     }
 
     return (
-        <p
+        <span
             className={cn(
-                'mt-2 text-xs',
-                label === 'Synced'
-                    ? 'text-muted-foreground'
-                    : 'text-amber-700 dark:text-amber-300',
+                'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium',
+                inFlight
+                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200'
+                    : 'border-green-500/40 bg-green-500/10 text-green-800 dark:text-green-200',
             )}
         >
+            <span
+                className={cn(
+                    'size-1.5 shrink-0 rounded-full',
+                    inFlight ? 'bg-amber-500' : 'bg-green-500',
+                )}
+            />
             {label}
-        </p>
+        </span>
+    );
+}
+
+function CricketBatIcon({ className }: { className?: string }) {
+    return (
+        <svg
+            className={cn(
+                'inline-block h-[1em] w-[1em] shrink-0 text-green-600 dark:text-green-500',
+                className,
+            )}
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 64 80"
+            fill="currentColor"
+            aria-hidden="true"
+        >
+            <path d="M44.55,15.65h0l3.8,3.8h0L60.25,7.55h0a.69.69,0,0,0,1,0l1.39-1.39a.69.69,0,0,0,0-1l-3.8-3.8a.69.69,0,0,0-1,0L56.45,2.77a.69.69,0,0,0,0,1h0Z" />
+            <path d="M35.6,30.25l4.08,4.08,8.58-8.58-.89-.89a3.12,3.12,0,0,1-.63-3.52l-4.07-4.07a3.12,3.12,0,0,1-3.52-.63l-.89-.89-2.44,2.44Z" />
+            <polygon points="33.65 20.35 31.15 22.85 30.98 32 36.49 37.51 38.17 35.83 33.45 31.11 33.65 20.35" />
+            <path d="M28.83,32.87,29,25,1.17,52.83a24.23,24.23,0,0,0,4.3,5.7,24.23,24.23,0,0,0,5.7,4.3L35,39Z" />
+        </svg>
+    );
+}
+
+function CricketBallIcon({ className }: { className?: string }) {
+    return (
+        <svg
+            className={cn(
+                'inline-block h-[1em] w-[1em] shrink-0 text-red-800 dark:text-red-700',
+                className,
+            )}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+        >
+            <circle cx="12" cy="12" r="9" fill="currentColor" stroke="none" />
+            <path
+                d="M7.5 4.2 A9 9 0 0 1 7.5 19.8"
+                stroke="#fff"
+                strokeWidth="1.2"
+                fill="none"
+            />
+            <path
+                d="M6.6 6.2 l1.3 .5 M6.1 8.4 l1.4 .3 M6 10.7 l1.4 .1 M6 13.3 l1.4 -.1 M6.1 15.6 l1.4 -.3 M6.6 17.8 l1.3 -.5"
+                stroke="#fff"
+                strokeWidth="0.9"
+            />
+        </svg>
     );
 }
 
@@ -427,6 +489,19 @@ export default function ScoringIndex(props: PageProps) {
         ...derived,
         is_complete: isComplete,
     };
+
+    const oversDisplay = useMemo(() => {
+        const countingBalls = countingDeliveriesFromList(
+            deliveries,
+            fixtureConfig,
+        );
+        const completedOvers = Math.floor(
+            countingBalls / fixture.balls_per_over,
+        );
+        const ballsInCurrentOver = countingBalls % fixture.balls_per_over;
+
+        return `${completedOvers}.${ballsInCurrentOver}`;
+    }, [deliveries, fixtureConfig, fixture.balls_per_over]);
 
     const currentOverDeliveries = currentOverDeliveriesFromLog(
         deliveries,
@@ -768,6 +843,7 @@ export default function ScoringIndex(props: PageProps) {
         currentBlockPlayers.length >= 2 &&
         !strikerSelected;
     const battingSideName = isOurs ? team.name : fixture.opponent;
+    const bowlingSideName = isOurs ? fixture.opponent : team.name;
     const currentBowler = players.find(
         (player) => player.id === bowlerForCurrentOver,
     );
@@ -1064,7 +1140,7 @@ export default function ScoringIndex(props: PageProps) {
                                         : 'border-input hover:bg-muted',
                                 )}
                             >
-                                {player.squad_number ?? '—'} — {player.name}
+                                {player.name}
                             </button>
                         ))}
                     </div>
@@ -1171,25 +1247,21 @@ export default function ScoringIndex(props: PageProps) {
             </Dialog>
 
             <div className="mx-auto flex min-h-full w-full max-w-lg flex-col pb-6">
-                <div className="bg-background/95 sticky top-0 z-10 border-b px-4 py-4 backdrop-blur">
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                            <p className="text-4xl font-bold tracking-tight">
-                                {state.total_runs} / {state.wickets}
+                <div className="bg-background/95 sticky top-0 z-10 border-b px-4 py-2.5 backdrop-blur">
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                            <p className="text-3xl leading-none font-bold tracking-tight">
+                                {state.total_runs}/{state.wickets}
                             </p>
-                            <p className="text-muted-foreground mt-1 text-sm">
-                                Over {state.over_no} of {fixture.overs} · Ball{' '}
-                                {state.balls_bowled_this_over}/
-                                {state.balls_per_over}
-                            </p>
-                            <p className="mt-2 text-sm font-medium">
-                                {battingSideName} batting · vs{' '}
-                                {isOurs ? fixture.opponent : team.name}
-                            </p>
-                            {!isOurs && currentBowler && (
-                                <p className="text-muted-foreground mt-1 text-sm">
-                                    Bowler: {currentBowler.name}
-                                </p>
+                            <span className="text-lg leading-none font-semibold text-blue-600 dark:text-blue-400">
+                                {oversDisplay}
+                            </span>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                            {state.is_last_over && !state.is_complete && (
+                                <Badge className="border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                                    LAST OVER
+                                </Badge>
                             )}
                             <SyncIndicator
                                 pendingCount={pendingCount}
@@ -1199,23 +1271,20 @@ export default function ScoringIndex(props: PageProps) {
                                 onReview={() => setShowErrorReview(true)}
                             />
                         </div>
-                        {state.is_last_over && !state.is_complete && (
-                            <Badge className="border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300">
-                                LAST OVER
-                            </Badge>
-                        )}
                     </div>
-
-                    {isOurs && currentBlockPlayers.length >= 2 && (
-                        <p className="text-muted-foreground mt-3 text-sm">
-                            Block {currentBlockNumber}:{' '}
-                            {currentBlockPlayers
-                                .map((player) => player.name)
-                                .join(' & ')}
+                    <p className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs font-medium">
+                        <CricketBatIcon />
+                        <span>{battingSideName}</span>
+                        <span className="text-muted-foreground/80">vs</span>
+                        <span>{bowlingSideName}</span>
+                        <CricketBallIcon />
+                    </p>
+                    {!isOurs && currentBowler && (
+                        <p className="text-muted-foreground mt-0.5 text-xs">
+                            Bowler: {currentBowler.name}
                         </p>
                     )}
-
-                    <div className="mt-3">
+                    <div className="mt-2">
                         <OverStrip deliveries={currentOverDeliveries} />
                     </div>
                 </div>
@@ -1275,9 +1344,6 @@ export default function ScoringIndex(props: PageProps) {
                                                 'cursor-not-allowed opacity-50',
                                         )}
                                     >
-                                        <span className="block text-sm opacity-80">
-                                            {player.squad_number ?? '—'}
-                                        </span>
                                         <span className="block text-lg font-bold">
                                             {player.name}
                                         </span>
@@ -1317,7 +1383,6 @@ export default function ScoringIndex(props: PageProps) {
                                             key={player.id}
                                             value={String(player.id)}
                                         >
-                                            {player.squad_number ?? '—'} —{' '}
                                             {player.name}
                                         </SelectItem>
                                     ))}

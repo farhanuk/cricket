@@ -462,10 +462,9 @@ class StatsService
         $strikerId = $delivery->striker_id;
 
         if (! isset($byStriker[$strikerId])) {
-            $squadNumber = $delivery->striker->squad_number;
             $byStriker[$strikerId] = [
                 'player_id' => $strikerId,
-                'player' => ($squadNumber !== null ? "{$squadNumber} " : '').$delivery->striker->name,
+                'player' => $delivery->striker->name,
                 'runs' => 0,
                 'balls' => 0,
                 'fours' => 0,
@@ -587,8 +586,6 @@ class StatsService
             return 'Unknown';
         }
 
-        $squadNumber = $player->squad_number;
-
-        return ($squadNumber !== null ? "{$squadNumber} " : '').$player->name;
+        return $player->name;
     }
 }

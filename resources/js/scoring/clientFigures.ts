@@ -42,9 +42,7 @@ function formatOvers(countingBalls: number, ballsPerOver: number): string {
 }
 
 function playerLabel(player: Player): string {
-    return player.squad_number !== null
-        ? `${player.squad_number} ${player.name}`
-        : player.name;
+    return player.name;
 }
 
 function overForDeliveryIndex(

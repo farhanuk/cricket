@@ -90,7 +90,6 @@ export default function FixturesSelection({
                                     className="hover:bg-muted/50 flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors"
                                 >
                                     <span>
-                                        {player.squad_number ?? '—'}{' '}
                                         {player.name}
                                     </span>
                                     <Checkbox
